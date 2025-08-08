@@ -156,6 +156,9 @@ def core_router(
         # 更新页面返回内容
         page_content = url_params_page.render(current_url=current_url)
 
+    ### ADD_PAGE 逻辑插入位置
+    ### NEW_PAGE_TARGET
+
     # 多标签页形式
     if page_config.get("core_layout_type") == "tabs":
         # 基于Patch进行标签页子项远程映射更新

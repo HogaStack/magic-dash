@@ -24,9 +24,7 @@ from configs import RouterConfig
 
 app.clientside_callback(
     # 控制核心页面侧边栏折叠
-    ClientsideFunction(
-        namespace="clientside_basic", function_name="handleSideCollapse"
-    ),
+    ClientsideFunction(namespace="clientside_basic", function_name="handleSideCollapse"),
     [
         Output("core-side-menu-collapse-button-icon", "icon"),
         Output("core-header-side", "style"),
@@ -45,17 +43,13 @@ app.clientside_callback(
 
 app.clientside_callback(
     # 控制页首页面搜索切换功能
-    ClientsideFunction(
-        namespace="clientside_basic", function_name="handleCorePageSearch"
-    ),
+    ClientsideFunction(namespace="clientside_basic", function_name="handleCorePageSearch"),
     Input("core-page-search", "value"),
 )
 
 app.clientside_callback(
     # 控制ctrl+k快捷键聚焦页面搜索框
-    ClientsideFunction(
-        namespace="clientside_basic", function_name="handleCorePageSearchFocus"
-    ),
+    ClientsideFunction(namespace="clientside_basic", function_name="handleCorePageSearchFocus"),
     # 其中更新key用于强制刷新状态
     [
         Output("core-page-search", "autoFocus"),
@@ -182,6 +176,9 @@ def core_router(
         # 更新页面返回内容
         page_content = login_logs.render()
 
+    ### ADD_PAGE 逻辑插入位置
+    ### NEW_PAGE_TARGET
+
     # 多标签页形式
     if page_config.get("core_layout_type") == "tabs":
         # 基于Patch进行标签页子项远程映射更新
@@ -200,8 +197,7 @@ def core_router(
                         "children": index.render(),
                         "closable": False,
                         "contextMenu": [
-                            {"key": key, "label": key}
-                            for key in ["关闭其他", "刷新页面"]
+                            {"key": key, "label": key} for key in ["关闭其他", "刷新页面"]
                         ],
                     }
                 )
@@ -214,8 +210,7 @@ def core_router(
                             "children": index.render(),
                             "closable": False,
                             "contextMenu": [
-                                {"key": key, "label": key}
-                                for key in ["关闭其他", "刷新页面"]
+                                {"key": key, "label": key} for key in ["关闭其他", "刷新页面"]
                             ],
                         },
                         {
@@ -302,9 +297,7 @@ def core_router(
 
 
 app.clientside_callback(
-    ClientsideFunction(
-        namespace="clientside_basic", function_name="handleCoreTabsClose"
-    ),
+    ClientsideFunction(namespace="clientside_basic", function_name="handleCoreTabsClose"),
     [
         Output("core-container", "items", allow_duplicate=True),
         Output("core-container", "activeKey", allow_duplicate=True),
@@ -318,9 +311,7 @@ app.clientside_callback(
 )
 
 app.clientside_callback(
-    ClientsideFunction(
-        namespace="clientside_basic", function_name="handleCoreFullscreenToggle"
-    ),
+    ClientsideFunction(namespace="clientside_basic", function_name="handleCoreFullscreenToggle"),
     [
         Output("core-fullscreen", "isFullscreen"),
         Output("core-full-screen-toggle-button-icon", "icon"),

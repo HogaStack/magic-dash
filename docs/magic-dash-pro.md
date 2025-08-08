@@ -252,3 +252,20 @@ lambda current_user: current_user.user_name
 > `DatabaseConfig.mysql_config`
 
 当数据库类型为`'mysql'`时，配置**MySQL**数据库连接参数。
+
+
+## 5 插件
+
+### 快速添加页面
+
+```cmd
+python utils/add_page.py --name PagaName
+```
+
+ | 参数名 | 类型 | 默认值 | 描述 |
+ |--------|------|--------|------|
+ | --name | str | 无 | 页面名称（必填）/key |
+ | --title | str | --name | 页面标题 |
+ | --describe | str | --name | 页面描述/注释 |
+ | --url | str | --name | 页面URL路径，默认/core/{--name} |
+ | --icon | str | "antd-menu" | 页面图标 |
