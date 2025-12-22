@@ -23,6 +23,9 @@ class Users(BaseModel):
     # 用户角色，全部可选项见configs.AuthConfig.roles
     user_role = CharField(default=AuthConfig.normal_role)
 
+    # 用户所属部门id，允许空值
+    department_id = CharField(null=True)
+
     # 用户最近一次登录会话token
     session_token = CharField(null=True)
 
