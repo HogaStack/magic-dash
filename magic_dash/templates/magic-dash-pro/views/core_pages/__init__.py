@@ -40,7 +40,7 @@ def get_page_search_options(current_user_access_rule: str):
             )
 
         elif current_user_access_rule["type"] == "include":
-            if pathname in current_user_access_rule["keys"]:
+            if pathname in current_user_access_rule.get("keys", []):
                 options.append(
                     {
                         "label": title,
@@ -49,7 +49,7 @@ def get_page_search_options(current_user_access_rule: str):
                 )
 
         elif current_user_access_rule["type"] == "exclude":
-            if pathname not in current_user_access_rule["keys"]:
+            if pathname not in current_user_access_rule.get("keys", []):
                 options.append(
                     {
                         "label": title,

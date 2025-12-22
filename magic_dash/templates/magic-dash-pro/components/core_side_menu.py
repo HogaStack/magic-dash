@@ -20,7 +20,7 @@ def render(current_user_access_rule: str):
     # 根据current_user_access_rule规则过滤菜单结构
     if current_user_access_rule["type"] == "include":
         for key in RouterConfig.valid_pathnames.keys():
-            if key not in current_user_access_rule["keys"]:
+            if key not in current_user_access_rule.get("keys", []):
                 # 首页不受权限控制影响
                 if key not in [
                     "/",
@@ -35,7 +35,7 @@ def render(current_user_access_rule: str):
 
     elif current_user_access_rule["type"] == "exclude":
         for key in RouterConfig.valid_pathnames.keys():
-            if key in current_user_access_rule["keys"]:
+            if key in current_user_access_rule.get("keys", []):
                 # 首页不受权限控制影响
                 if key not in [
                     "/",

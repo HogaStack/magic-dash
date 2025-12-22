@@ -157,7 +157,7 @@ def root_router(pathname, trigger):
         # 检查是否满足通配渲染页面规则
         match_wildcard_patterns = [
             pattern
-            for pattern in current_user_access_rule["keys"]
+            for pattern in current_user_access_rule.get("keys", [])
             if isinstance(pattern, re.Pattern) and pattern.match(pathname)
         ]
 
@@ -165,7 +165,7 @@ def root_router(pathname, trigger):
         if current_user_access_rule["type"] == "include":
             # 若当前用户不具有针对当前访问目标页面的权限
             if (
-                pathname not in current_user_access_rule["keys"]
+                pathname not in current_user_access_rule.get("keys", [])
                 and not match_wildcard_patterns
             ):
                 # 首页不受权限控制影响
@@ -188,7 +188,10 @@ def root_router(pathname, trigger):
         # 若当前用户页面权限规则类型为'exclude'
         elif current_user_access_rule["type"] == "exclude":
             # 若当前用户不具有针对当前访问目标页面的权限
-            if pathname in current_user_access_rule["keys"] or match_wildcard_patterns:
+            if (
+                pathname in current_user_access_rule.get("keys", [])
+                or match_wildcard_patterns
+            ):
                 # 重定向至403页面
                 set_props(
                     "global-redirect",

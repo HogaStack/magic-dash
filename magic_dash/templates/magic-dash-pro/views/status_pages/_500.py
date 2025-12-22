@@ -10,9 +10,6 @@ def render(e: str = None, e_detail: str = None):
     # 提取错误详细信息
     e_detail = traceback.format_exc()
 
-    if e is None:
-        e = Exception("500状态页演示示例错误")
-
     return fac.AntdCenter(
         fac.AntdResult(
             # 自定义状态图片
@@ -26,7 +23,7 @@ def render(e: str = None, e_detail: str = None):
             ),
             extra=fac.AntdAlert(
                 description=fac.AntdText(
-                    ("具体错误信息：\n" + e_detail),
+                    "具体错误信息：\n" + (e_detail if e else "500状态页演示示例错误"),
                     type="secondary",
                     style=style(
                         whiteSpace="pre-wrap",
