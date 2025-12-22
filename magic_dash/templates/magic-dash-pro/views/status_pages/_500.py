@@ -1,10 +1,14 @@
+import traceback
 from dash import html
 import feffery_antd_components as fac
 from feffery_dash_utils.style_utils import style
 
 
-def render(e: str = None):
+def render(e: str = None, e_detail: str = None):
     """渲染500状态页面"""
+
+    # 提取错误详细信息
+    e_detail = traceback.format_exc()
 
     if e is None:
         e = Exception("500状态页演示示例错误")
@@ -17,8 +21,20 @@ def render(e: str = None):
                 style=style(height="50vh", pointerEvents="none"),
             ),
             title=fac.AntdText("系统内部错误", style=style(fontSize=20)),
-            subTitle="错误信息：" + str(e),
-            extra=fac.AntdButton("返回首页", type="primary", href="/", target="_self"),
+            subTitle=fac.AntdButton(
+                "返回首页", type="primary", href="/", target="_self"
+            ),
+            extra=fac.AntdAlert(
+                description=fac.AntdText(
+                    ("具体错误信息：\n" + e_detail),
+                    type="secondary",
+                    style=style(
+                        whiteSpace="pre-wrap",
+                        wordBreak="break-all",
+                    ),
+                ),
+                style=style(textAlign="left"),
+            ),
         ),
-        style={"height": "calc(60vh + 100px)"},
+        style={"minHeight": "calc(60vh + 100px)"},
     )
