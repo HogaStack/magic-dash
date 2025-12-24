@@ -29,6 +29,15 @@ class Departments(BaseModel):
             return cls.get_or_none(cls.department_id == department_id)
 
     @classmethod
+    def get_children_departments(cls, department_id: str):
+        """根据部门id查询子部门信息"""
+
+        with db.connection_context():
+            return list(
+                cls.select().where(cls.parent_department_id == department_id).dicts()
+            )
+
+    @classmethod
     def get_department_by_name(cls, department_name: str):
         """根据部门名称查询部门信息"""
 
@@ -76,11 +85,23 @@ class Departments(BaseModel):
 
     @classmethod
     def delete_department(cls, department_id: str):
-        """删除部门"""
+        """删除部门，并删除关联的全部后代部门"""
 
         with db.connection_context():
+            # 递归查询所有后代部门id
+            def get_descendant_ids(dept_id: str) -> list:
+                ids = [dept_id]
+                children = cls.select(cls.department_id).where(
+                    cls.parent_department_id == dept_id
+                )
+                for child in children:
+                    ids.extend(get_descendant_ids(child.department_id))
+                return ids
+
+            all_ids = get_descendant_ids(department_id)
+
             with db.atomic():
-                cls.delete().where(cls.department_id == department_id).execute()
+                cls.delete().where(cls.department_id.in_(all_ids)).execute()
 
     @classmethod
     def truncate_departments(cls, execute: bool = False):

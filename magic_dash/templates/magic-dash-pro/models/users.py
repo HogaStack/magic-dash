@@ -47,6 +47,13 @@ class Users(BaseModel):
             return cls.get_or_none(cls.user_name == user_name)
 
     @classmethod
+    def get_users_by_department_id(cls, department_id: str):
+        """根据部门id查询用户信息"""
+
+        with db.connection_context():
+            return list(cls.select().where(cls.department_id == department_id).dicts())
+
+    @classmethod
     def get_all_users(cls):
         """获取所有用户信息"""
 

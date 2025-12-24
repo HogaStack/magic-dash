@@ -67,6 +67,9 @@ def open_user_manage_drawer(nClicks, clickedKey):
     elif clickedKey == "用户管理":
         set_props("user-manage-drawer", {"visible": True, "loading": True})
 
+    elif clickedKey == "部门管理":
+        set_props("department-manage-drawer", {"visible": True, "loading": True})
+
 
 @app.callback(
     [
