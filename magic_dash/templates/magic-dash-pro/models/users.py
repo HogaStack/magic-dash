@@ -1,10 +1,11 @@
-from peewee import CharField
+from peewee import CharField, JOIN
 from typing import Union, Dict, List
 from playhouse.sqlite_ext import JSONField
 from werkzeug.security import check_password_hash
 
 from . import db, BaseModel
 from configs import AuthConfig
+from .departments import Departments
 from .exceptions import InvalidUserError, ExistingUserError
 
 
@@ -54,10 +55,22 @@ class Users(BaseModel):
             return list(cls.select().where(cls.department_id == department_id).dicts())
 
     @classmethod
-    def get_all_users(cls):
+    def get_all_users(cls, with_department_name: bool = False):
         """获取所有用户信息"""
 
         with db.connection_context():
+            # 若需要额外携带部门名称信息
+            if with_department_name:
+                return list(
+                    # 选择Users表全部字段、Departments表的department_name字段
+                    cls.select(cls, Departments.department_name)
+                    .join(
+                        Departments,
+                        JOIN.LEFT_OUTER,
+                        on=(cls.department_id == Departments.department_id),
+                    )
+                    .dicts()
+                )
             return list(cls.select().dicts())
 
     @classmethod
@@ -72,6 +85,7 @@ class Users(BaseModel):
         user_id: str,
         user_name: str,
         password_hash: str,
+        department_id: str = None,
         user_role: str = "normal",
         other_info: Union[Dict, List] = None,
     ):
@@ -96,6 +110,7 @@ class Users(BaseModel):
                     user_id=user_id,
                     user_name=user_name,
                     password_hash=password_hash,
+                    department_id=department_id,
                     user_role=user_role,
                     other_info=other_info,
                 )

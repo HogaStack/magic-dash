@@ -79,20 +79,24 @@ def update_department_manage_drawer_content():
             modals,
             fac.AntdSpace(
                 [
-                    fac.AntdButton(
-                        "新增部门",
-                        id="department-manage-add-department",
-                        size="small",
-                        type="primary",
-                    ),
                     fac.AntdAlert(
-                        message="操作提示：点击上方按钮创建新部门，右键下方有效部门节点进入部门删除等操作",
+                        message="操作提示：点击按钮创建新部门，右键有效部门节点进入部门删除等操作",
                         type="info",
                         showIcon=True,
                     ),
-                    fac.AntdText(
-                        "当前有效部门数量：{}".format(len(departments)),
-                        type="secondary",
+                    fac.AntdSpace(
+                        [
+                            fac.AntdButton(
+                                "新增部门",
+                                id="department-manage-add-department",
+                                size="small",
+                                type="primary",
+                            ),
+                            fac.AntdText(
+                                "当前有效部门数量：{}".format(len(departments)),
+                                type="secondary",
+                            ),
+                        ]
                     ),
                     fac.AntdDivider(style=style(marginTop=8, marginBottom=8)),
                     fac.AntdTree(

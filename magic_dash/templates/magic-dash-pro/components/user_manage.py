@@ -9,6 +9,8 @@ from werkzeug.security import generate_password_hash
 
 from server import app
 from models.users import Users
+from models.departments import Departments
+
 from configs import AuthConfig
 
 
@@ -25,13 +27,14 @@ def render():
 def refresh_user_manage_table_data():
     """当前模块内复用工具函数，刷新用户管理表格数据"""
 
-    # 查询全部用户信息
-    all_users = Users.get_all_users()
+    # 查询全部用户信息（含部门名称）
+    all_users = Users.get_all_users(with_department_name=True)
 
     return [
         {
             "user_id": item["user_id"],
             "user_name": item["user_name"],
+            "user_department": item["department_name"] or "无",
             "user_role": {
                 "tag": AuthConfig.roles.get(item["user_role"])["description"],
                 "color": (
@@ -95,6 +98,13 @@ def render_user_manage_drawer(visible):
                                     },
                                 },
                                 {
+                                    "dataIndex": "user_department",
+                                    "title": "所属部门",
+                                    "renderOptions": {
+                                        "renderType": "ellipsis-copyable",
+                                    },
+                                },
+                                {
                                     "dataIndex": "user_role",
                                     "title": "用户角色",
                                     "renderOptions": {"renderType": "tags"},
@@ -112,6 +122,9 @@ def render_user_manage_drawer(visible):
                             filterOptions={
                                 "user_name": {
                                     "filterMode": "keyword",
+                                },
+                                "user_department": {
+                                    "filterMode": "checkbox",
                                 },
                                 "user_role": {
                                     "filterMode": "checkbox",
@@ -151,6 +164,9 @@ def render_user_manage_drawer(visible):
 def open_add_user_modal(nClicks):
     """打开新增用户模态框"""
 
+    # 查询当前全部部门信息
+    departments = Departments.get_all_departments()
+
     return [
         True,
         fac.AntdForm(
@@ -171,6 +187,21 @@ def open_add_user_modal(nClicks):
                         allowClear=True,
                     ),
                     label="密码",
+                ),
+                fac.AntdFormItem(
+                    fac.AntdSelect(
+                        id="user-manage-add-user-form-department-id",
+                        options=[
+                            {
+                                "label": item["department_name"],
+                                "value": item["department_id"],
+                            }
+                            for item in departments
+                        ],
+                        placeholder="请选择所属部门",
+                        allowClear=True,
+                    ),
+                    label="所属部门",
                 ),
                 fac.AntdFormItem(
                     fac.AntdSelect(
@@ -246,6 +277,7 @@ def handle_add_user(okCounts, values):
                 password_hash=generate_password_hash(
                     values["user-manage-add-user-form-user-password"]
                 ),
+                department_id=values.get("user-manage-add-user-form-department-id"),
                 user_role=values["user-manage-add-user-form-user-role"],
             )
 
