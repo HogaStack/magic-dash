@@ -46,6 +46,11 @@ def refresh_user_manage_table_data():
                 "type": "link",
                 "danger": True,
                 "disabled": item["user_role"] == AuthConfig.admin_role,
+                "popConfirmProps": {
+                    "title": "确认删除当前用户",
+                    "okText": "确认",
+                    "cancelText": "取消",
+                },
             },
         }
         for item in all_users
