@@ -39,6 +39,15 @@ def update_department_manage_drawer_content():
                 renderFooter=True,
                 okClickClose=False,
             ),
+            # 部门人员调整模态框
+            fac.AntdModal(
+                id="department-manage-alter-members-modal",
+                title=fac.AntdSpace([fac.AntdIcon(icon="antd-team"), "部门人员调整"]),
+                mask=False,
+                renderFooter=True,
+                okClickClose=False,
+                width=700,
+            ),
             # 删除部门模态框
             fac.AntdModal(
                 id="department-manage-delete-department-modal",
@@ -80,7 +89,7 @@ def update_department_manage_drawer_content():
             fac.AntdSpace(
                 [
                     fac.AntdAlert(
-                        message="操作提示：点击按钮创建新部门，右键有效部门节点进入部门删除等操作",
+                        message="操作提示：点击按钮创建新部门，右键部门节点进行更多操作",
                         type="info",
                         showIcon=True,
                     ),
@@ -118,8 +127,14 @@ def update_department_manage_drawer_content():
                                     ),
                                     "contextMenu": [
                                         {
+                                            "key": "部门人员调整",
+                                            "label": "部门人员调整",
+                                            "icon": "antd-team",
+                                        },
+                                        {
                                             "key": "删除当前部门",
                                             "label": "删除当前部门",
+                                            "icon": "antd-delete",
                                         },
                                     ],
                                 }
@@ -286,67 +301,177 @@ def handle_add_department(okCounts, values):
 
 
 @app.callback(
-    [
-        Output("department-manage-delete-department-modal", "visible"),
-        Output("department-manage-delete-department-modal", "children"),
-    ],
     Input("department-manage-tree", "clickedContextMenu"),
-    prevent_initial_call=True,
 )
 def open_delete_department_modal(clickedContextMenu):
-    """打开删除部门模态框"""
+    """打开部门人员调整、删除当前部门模态框"""
 
-    # 查询当前对应部门
-    match_department = Departments.get_department(
-        department_id=clickedContextMenu["nodeKey"]
-    )
+    if clickedContextMenu["menuKey"] == "部门人员调整":
+        # 查询当前对应部门
+        match_department = Departments.get_department(
+            department_id=clickedContextMenu["nodeKey"]
+        )
+
+        # 查询当前对应部门内部员工信息
+        match_users = Users.get_users_by_department_id(
+            department_id=clickedContextMenu["nodeKey"]
+        )
+
+        # 查询全部人员信息
+        all_users = Users.get_all_users(with_department_name=True)
+
+        set_props(
+            "department-manage-alter-members-modal",
+            {
+                "visible": True,
+                "children": fac.AntdSpace(
+                    [
+                        fac.AntdAlert(
+                            message="操作提示：通过下方控件进行当前部门人员临时调整后，点击确认保存调整结果",
+                            type="info",
+                            showIcon=True,
+                        ),
+                        fac.AntdText(
+                            "当前部门：" + match_department.department_name,
+                            type="secondary",
+                        ),
+                        fac.AntdTransfer(
+                            id="department-manage-alter-members-transfer",
+                            dataSource=[
+                                {
+                                    "key": item["user_id"],
+                                    "title": fac.AntdSpace(
+                                        [
+                                            item["user_name"],
+                                            fac.AntdTag(
+                                                content=item["department_name"] or "无",
+                                                color=(
+                                                    "blue"
+                                                    if item["department_id"]
+                                                    == match_department.department_id
+                                                    else None
+                                                ),
+                                            ),
+                                        ]
+                                    ),
+                                }
+                                for item in all_users
+                            ],
+                            targetKeys=[
+                                item["user_id"]
+                                for item in all_users
+                                if item["department_id"]
+                                == match_department.department_id
+                            ],
+                            height=350,
+                            titles=["其他部门人员", "当前部门人员"],
+                            operations=["移入", "移出"],
+                            showSearch=True,
+                        ),
+                    ],
+                    direction="vertical",
+                    style=style(width="100%"),
+                ),
+            },
+        )
+
+    elif clickedContextMenu["menuKey"] == "删除当前部门":
+        # 查询当前对应部门
+        match_department = Departments.get_department(
+            department_id=clickedContextMenu["nodeKey"]
+        )
+
+        # 查询当前对应部门内部员工信息
+        match_users = Users.get_users_by_department_id(
+            department_id=clickedContextMenu["nodeKey"]
+        )
+
+        set_props(
+            "department-manage-delete-department-modal",
+            {
+                "visible": True,
+                "children": fac.AntdAlert(
+                    type="warning",
+                    showIcon=True,
+                    message=fac.AntdText(
+                        [
+                            "确定要删除部门【",
+                            fac.AntdText(
+                                match_department.department_name,
+                                strong=True,
+                                style=style(fontSize=16),
+                            ),
+                            "】吗？",
+                        ],
+                        style=style(fontSize=16),
+                    ),
+                    description=fac.AntdText(
+                        [
+                            "该部门涉及用户数量：",
+                            (
+                                # 高亮警示
+                                fac.AntdText(
+                                    len(match_users),
+                                    strong=True,
+                                    type="danger",
+                                )
+                                if match_users
+                                else fac.AntdText(0)
+                            ),
+                        ]
+                    ),
+                    style=style(marginTop=24, marginBottom=24),
+                ),
+            },
+        )
+
+
+@app.callback(
+    Input("department-manage-alter-members-modal", "okCounts"),
+    [
+        State("department-manage-tree", "clickedContextMenu"),
+        State("department-manage-alter-members-transfer", "targetKeys"),
+    ],
+    prevent_initial_call=True,
+)
+def handle_alter_members(okCounts, clickedContextMenu, targetKeys):
+    """处理部门人员调整逻辑"""
 
     # 查询当前对应部门内部员工信息
     match_users = Users.get_users_by_department_id(
         department_id=clickedContextMenu["nodeKey"]
     )
 
-    # 查询当前部门下一级所有部门信息
-    match_children_departments = Departments.get_children_departments(
-        department_id=clickedContextMenu["nodeKey"]
+    # 提取当前部门原有人员用户id
+    match_user_ids = [item["user_id"] for item in match_users]
+
+    # 执行部门人员调整操作
+    Users.alter_department_members(
+        department_id=clickedContextMenu["nodeKey"],
+        origin_user_ids=match_user_ids,
+        target_user_ids=targetKeys,
     )
 
-    return [
-        True,
-        fac.AntdAlert(
-            type="warning",
-            showIcon=True,
-            message=fac.AntdText(
-                [
-                    "确定要删除部门【",
-                    fac.AntdText(
-                        match_department.department_name,
-                        strong=True,
-                        style=style(fontSize=16),
-                    ),
-                    "】吗？",
-                ],
-                style=style(fontSize=16),
-            ),
-            description=fac.AntdSpace(
-                [
-                    "该部门涉及用户数量：{}".format(len(match_users)),
-                    "该部门下属一级部门数量：{}".format(
-                        len(match_children_departments)
-                    ),
-                ],
-                direction="vertical",
-                size=0,
-                style=style(width="100%"),
-            ),
-            style=style(marginTop=24, marginBottom=24),
-        ),
-    ]
+    set_props(
+        "global-message",
+        {
+            "children": fac.AntdMessage(
+                type="success",
+                content="部门人员调整成功",
+            )
+        },
+    )
+
+    # 刷新部门管理抽屉内容
+    set_props(
+        "department-manage-drawer",
+        {"children": update_department_manage_drawer_content()},
+    )
 
 
 @app.callback(
     Input("department-manage-delete-department-modal", "okCounts"),
-    [State("department-manage-tree", "clickedContextMenu")],
+    State("department-manage-tree", "clickedContextMenu"),
     prevent_initial_call=True,
 )
 def handle_delete_department(okCounts, clickedContextMenu):

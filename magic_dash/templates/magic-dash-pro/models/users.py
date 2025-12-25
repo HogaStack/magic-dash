@@ -143,3 +143,35 @@ class Users(BaseModel):
 
             # 返回成功更新后的用户信息
             return cls.get_or_none(cls.user_id == user_id)
+
+    @classmethod
+    def alter_department_members(
+        cls,
+        department_id: str,
+        origin_user_ids: list = None,
+        target_user_ids: list = None,
+    ):
+        """更改用户所属部门"""
+
+        with db.connection_context():
+            with db.atomic():
+                # 将本次操作被移出部门的用户所属部门更新为空
+                (
+                    cls.update(department_id=None)
+                    .where(
+                        cls.user_id
+                        << [
+                            user_id
+                            for user_id in origin_user_ids
+                            if user_id not in target_user_ids
+                        ]
+                    )
+                    .execute()
+                )
+
+                # 将本次操作被移入部门的用户所属部门更新为目标部门
+                (
+                    cls.update(department_id=department_id)
+                    .where(cls.user_id << target_user_ids)
+                    .execute()
+                )
