@@ -39,6 +39,8 @@ magic_dash/templates/magic-dash-pro/callbacks/core_pages_c/login_logs_c.py
 magic_dash/templates/magic-dash-pro/callbacks/core_pages_c/page1_c.py
 magic_dash/templates/magic-dash-pro/components/__init__.py
 magic_dash/templates/magic-dash-pro/components/core_side_menu.py
+magic_dash/templates/magic-dash-pro/components/department_manage.py
+magic_dash/templates/magic-dash-pro/components/page_content.py
 magic_dash/templates/magic-dash-pro/components/personal_info.py
 magic_dash/templates/magic-dash-pro/components/user_manage.py
 magic_dash/templates/magic-dash-pro/configs/__init__.py
@@ -48,6 +50,7 @@ magic_dash/templates/magic-dash-pro/configs/database_config.py
 magic_dash/templates/magic-dash-pro/configs/layout_config.py
 magic_dash/templates/magic-dash-pro/configs/router_config.py
 magic_dash/templates/magic-dash-pro/models/__init__.py
+magic_dash/templates/magic-dash-pro/models/departments.py
 magic_dash/templates/magic-dash-pro/models/exceptions.py
 magic_dash/templates/magic-dash-pro/models/init_db.py
 magic_dash/templates/magic-dash-pro/models/logs.py
@@ -84,6 +87,7 @@ magic_dash/templates/magic-dash/callbacks/core_pages_c/__init__.py
 magic_dash/templates/magic-dash/callbacks/core_pages_c/page1_c.py
 magic_dash/templates/magic-dash/components/__init__.py
 magic_dash/templates/magic-dash/components/core_side_menu.py
+magic_dash/templates/magic-dash/components/page_content.py
 magic_dash/templates/magic-dash/configs/__init__.py
 magic_dash/templates/magic-dash/configs/base_config.py
 magic_dash/templates/magic-dash/configs/layout_config.py
