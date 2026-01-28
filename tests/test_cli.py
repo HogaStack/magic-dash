@@ -2,10 +2,13 @@ import os
 import subprocess
 import shutil
 import pytest
+import sys
 
 
 def run_command(cmd, input_text=None):
     """执行命令并返回结果"""
+    encoding = "utf-8"
+
     if input_text:
         process = subprocess.Popen(
             cmd,
@@ -13,7 +16,8 @@ def run_command(cmd, input_text=None):
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True,
+            encoding=encoding,
+            errors="replace",
         )
         stdout, stderr = process.communicate(input=input_text)
         returncode = process.returncode
@@ -22,11 +26,12 @@ def run_command(cmd, input_text=None):
             cmd,
             shell=True,
             capture_output=True,
-            text=True,
+            encoding=encoding,
+            errors="replace",
         )
         returncode = result.returncode
-        stdout = result.stdout
-        stderr = result.stderr
+        stdout = result.stdout or ""
+        stderr = result.stderr or ""
     return returncode, stdout, stderr
 
 
