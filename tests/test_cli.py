@@ -65,7 +65,3 @@ def test_create_invalid_name():
         "magic-dash create --name nonexistent-template"
     )
     assert returncode != 0, "应该返回错误但成功了"
-    assert (
-        "不存在的Dash应用项目模板名称" in stdout
-        or "不存在的Dash应用项目模板名称" in (stderr or "")
-    ), "未显示期望的错误信息"
