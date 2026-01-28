@@ -11,6 +11,7 @@ Requires-Python: >=3.8, <3.14
 Description-Content-Type: text/markdown
 License-File: LICENSE
 Requires-Dist: click
+Requires-Dist: rich
 Dynamic: author
 Dynamic: author-email
 Dynamic: classifier
