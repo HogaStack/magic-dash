@@ -110,3 +110,4 @@ magic_dash/templates/magic-dash/views/status_pages/_500.py
 magic_dash/templates/magic-dash/views/status_pages/__init__.py
 magic_dash/templates/simple-tool/app.py
 magic_dash/templates/simple-tool/requirements.txt
+tests/test_cli.py

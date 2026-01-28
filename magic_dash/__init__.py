@@ -112,7 +112,7 @@ def _create(name, path):
         for template in BUILTIN_TEMPLATES.keys():
             console.print(f"  - [cyan]{template}[/cyan]")
         console.print()
-        return
+        raise click.ClickException("无效的模板名称")
 
     # 显示模板信息
     template_info = BUILTIN_TEMPLATES[name]
