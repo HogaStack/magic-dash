@@ -1,9 +1,21 @@
 import io
+import os
+import re
 from setuptools import setup, find_packages
+
+
+def get_version():
+    version_file = os.path.join(os.path.dirname(__file__), "magic_dash", "__init__.py")
+    with open(version_file, encoding="utf-8") as f:
+        match = re.search(r'__version__ = "([^"]+)"', f.read())
+        if not match:
+            raise RuntimeError("无法找到版本号")
+        return match.group(1)
+
 
 setup(
     name="magic_dash",
-    version="0.5.0rc1",
+    version=get_version(),
     author_email="fefferypzy@gmail.com",
     homepage="https://github.com/CNFeffery/magic-dash",
     author="CNFeffery <fefferypzy@gmail.com>",
