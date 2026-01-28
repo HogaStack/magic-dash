@@ -42,6 +42,12 @@ magic-dash list
 
 ### 2.2 生成指定项目模板
 
+- ⭐ 推荐：交互式选择项目模板（不指定 `--name` 参数时会弹出选择菜单）
+
+```bash
+magic-dash create
+```
+
 - 默认生成到当前路径
 
 ```bash
@@ -52,6 +58,20 @@ magic-dash create --name magic-dash
 
 ```bash
 magic-dash create --name magic-dash --path 目标路径
+```
+
+- 项目生成完成后，进入项目目录运行应用
+
+```bash
+cd magic-dash
+pip install -r requirements.txt
+python app.py
+```
+
+- 对于 `magic-dash-pro` 模板，需要额外初始化数据库
+
+```bash
+python -m models.init_db
 ```
 
 ### 2.3 查看当前`magic-dash`版本

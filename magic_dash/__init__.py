@@ -3,6 +3,7 @@ import re
 import shutil
 
 import click
+import questionary
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
@@ -58,10 +59,46 @@ def _list():
 
 
 @click.command(name="create")
-@click.option("--name", required=True, type=click.STRING, help="Dash应用项目模板名称")
+@click.option("--name", type=click.STRING, help="Dash应用项目模板名称")
 @click.option("--path", type=click.STRING, default=".", help="项目生成目标路径")
 def _create(name, path):
     """生成指定Dash应用项目模板到指定目录"""
+
+    custom_style = questionary.Style(
+        [
+            ("qmark", "fg:#FFD700 bold"),
+            ("question", "bold cyan"),
+            ("answer", "bold green"),
+            ("pointer", "fg:#FFD700 bold"),
+            ("highlighted", "fg:#00FFFF bold"),
+            ("selected", "fg:#00FF00 bold"),
+            ("instruction", "fg:#888"),
+        ]
+    )
+
+    # 如果未指定模板名称，显示交互式选择菜单
+    if name is None:
+        choices = [
+            questionary.Choice(
+                title=[
+                    ("class:highlighted", template_name),
+                    ("class:text", f" - {template_info['description']}"),
+                ],
+                value=template_name,
+            )
+            for template_name, template_info in BUILTIN_TEMPLATES.items()
+        ]
+
+        name = questionary.select(
+            "请选择要生成的Dash应用项目模板：",
+            choices=choices,
+            style=custom_style,
+            instruction="(使用方向键选择，回车确认，Esc 取消)",
+        ).ask()
+
+        if name is None:
+            console.print("\n[yellow bold]已取消项目生成[/yellow bold]\n")
+            return
 
     # 检查目标项目模板是否存在
     if name not in BUILTIN_TEMPLATES.keys():
@@ -104,6 +141,7 @@ def _create(name, path):
 
     # 确认生成
     console.print()
+    console.print("[dim]（输入 y 确认，输入 n 取消，直接回车使用默认选项 Y）[/dim]")
     if not click.confirm("确认生成项目？", default=True):
         console.print("\n[yellow bold]已取消项目生成[/yellow bold]\n")
         return
