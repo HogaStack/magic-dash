@@ -63,6 +63,19 @@ def check_rsa_keys_exist():
     )
 
 
+def check_table_exists(table_model):
+    """检查数据表是否已存在"""
+
+    return table_model.table_exists()
+
+
+def check_table_has_data(table_model):
+    """检查数据表是否已有数据"""
+
+    with db.connection_context():
+        return table_model.select().count() > 0
+
+
 # 统一的questionary样式
 custom_style = questionary.Style(
     [
@@ -90,11 +103,10 @@ if __name__ == "__main__":
     admin_created = False
 
     # 0. RSA密钥对生成
-    console.print("\n[dim]请确认以下安全密钥操作：[/dim]\n")
-
     # 检查是否已存在RSA密钥对
     if check_rsa_keys_exist():
         # 已存在密钥，询问是否覆盖
+        console.print("\n[dim]请确认以下安全密钥操作：[/dim]\n")
         confirm_override = questionary.confirm(
             f"检测到已存在RSA密钥对文件（{BaseConfig.rsa_private_key_path} 和 {BaseConfig.rsa_public_key_path}），是否重新生成并覆盖？",
             default=False,
@@ -126,60 +138,101 @@ if __name__ == "__main__":
                 )
             )
     else:
-        # 不存在密钥，询问是否生成
-        confirm_generate = questionary.confirm(
-            "当前项目根目录中不存在RSA密钥对文件，是否生成新的RSA密钥对？",
-            default=True,
+        # 不存在密钥，直接生成
+        console.print(
+            "\n[dim]检测到当前项目根目录中不存在RSA密钥对文件，正在自动生成...[/dim]"
+        )
+        try:
+            generate_rsa_key_pair()
+            executed_operations.append(
+                (
+                    "RSA密钥对",
+                    f"已自动生成\n    私钥: {BaseConfig.rsa_private_key_path}\n    公钥: {BaseConfig.rsa_public_key_path}",
+                    "yellow",
+                    "green",
+                )
+            )
+        except Exception as e:
+            executed_operations.append(
+                ("RSA密钥对", f"生成失败: {str(e)}", "yellow", "red")
+            )
+
+    # 1&2. 预先检查部门和用户表状态
+    departments_exists = check_table_exists(Departments)
+    departments_has_data = departments_exists and check_table_has_data(Departments)
+    users_exists = check_table_exists(Users)
+    users_has_data = users_exists and check_table_has_data(Users)
+
+    # 判断是否需要用户交互（表存在且有数据时需要询问）
+    need_user_confirm = (departments_exists and departments_has_data) or (
+        users_exists and users_has_data
+    )
+
+    if need_user_confirm:
+        console.print("\n[dim]请确认以下数据库操作：[/dim]\n")
+
+    # 处理部门信息表
+    if departments_exists and departments_has_data:
+        # 表存在且有数据，询问是否重置
+        confirm_departments = questionary.confirm(
+            "检测到部门信息表已存在且有数据，是否重置？",
+            default=False,
             style=custom_style,
         ).ask()
 
-        if confirm_generate:
+        if confirm_departments:
             try:
-                generate_rsa_key_pair()
+                Departments.truncate_departments(execute=True)
+                executed_operations.append(("部门信息表", "已重置", "yellow", "green"))
+            except Exception as e:
                 executed_operations.append(
-                    (
-                        "RSA密钥对",
-                        f"已生成\n    私钥: {BaseConfig.rsa_private_key_path}\n    公钥: {BaseConfig.rsa_public_key_path}",
-                        "yellow",
-                        "green",
-                    )
+                    ("部门信息表", f"重置失败: {str(e)}", "yellow", "red")
+                )
+        else:
+            executed_operations.append(("部门信息表", "已跳过", "dim", "dim"))
+    else:
+        # 表不存在或没有数据，跳过（表已在顶部创建）
+        if not departments_exists:
+            executed_operations.append(("部门信息表", "已自动创建", "yellow", "green"))
+        else:
+            executed_operations.append(("部门信息表", "表已存在但无数据", "dim", "dim"))
+
+    # 处理用户信息表
+    if users_exists and users_has_data:
+        # 表存在且有数据，询问是否重置
+        confirm_users = questionary.confirm(
+            "检测到用户信息表已存在且有数据，是否重置并初始化管理员账号？",
+            default=False,
+            style=custom_style,
+        ).ask()
+
+        if confirm_users:
+            try:
+                Users.truncate_users(execute=True)
+
+                # 初始化管理员用户
+                Users.add_user(
+                    user_id="admin",
+                    user_name="admin",
+                    password_hash=generate_password_hash("admin123"),
+                    user_role=AuthConfig.admin_role,
+                )
+
+                admin_created = True
+                executed_operations.append(
+                    ("用户信息表", "已重置 + 管理员初始化", "yellow", "green")
                 )
             except Exception as e:
                 executed_operations.append(
-                    ("RSA密钥对", f"生成失败: {str(e)}", "yellow", "red")
+                    ("用户信息表", f"重置失败: {str(e)}", "yellow", "red")
                 )
         else:
-            executed_operations.append(("RSA密钥对", "已跳过生成", "dim", "dim"))
-
-    # 1. 询问是否重置部门表
-    console.print("\n[dim]请确认以下数据库操作：[/dim]\n")
-    confirm_departments = questionary.confirm(
-        "是否重置部门信息表？",
-        default=False,
-        style=custom_style,
-    ).ask()
-
-    if confirm_departments:
-        try:
-            Departments.truncate_departments(execute=True)
-            executed_operations.append(("部门信息表", "已重置", "yellow", "green"))
-        except Exception as e:
-            executed_operations.append(
-                ("部门信息表", f"重置失败: {str(e)}", "yellow", "red")
-            )
+            executed_operations.append(("用户信息表", "已跳过", "dim", "dim"))
     else:
-        executed_operations.append(("部门信息表", "已跳过", "dim", "dim"))
-
-    # 2. 询问是否重置用户表
-    confirm_users = questionary.confirm(
-        "是否重置用户信息表？",
-        default=False,
-        style=custom_style,
-    ).ask()
-
-    if confirm_users:
+        # 表不存在或没有数据，自动初始化
         try:
-            Users.truncate_users(execute=True)
+            if users_exists:
+                Users.truncate_users(execute=True)
 
             # 初始化管理员用户
             Users.add_user(
@@ -190,15 +243,18 @@ if __name__ == "__main__":
             )
 
             admin_created = True
-            executed_operations.append(
-                ("用户信息表", "已重置 + 管理员初始化", "yellow", "green")
-            )
+            if not users_exists:
+                executed_operations.append(
+                    ("用户信息表", "已自动创建 + 管理员初始化", "yellow", "green")
+                )
+            else:
+                executed_operations.append(
+                    ("用户信息表", "已自动初始化管理员账号", "yellow", "green")
+                )
         except Exception as e:
             executed_operations.append(
-                ("用户信息表", f"重置失败: {str(e)}", "yellow", "red")
+                ("用户信息表", f"初始化失败: {str(e)}", "yellow", "red")
             )
-    else:
-        executed_operations.append(("用户信息表", "已跳过", "dim", "dim"))
 
     # 显示操作结果汇总
     console.print("\n")
