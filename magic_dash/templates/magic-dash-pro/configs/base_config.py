@@ -50,3 +50,9 @@ class BaseConfig:
     fullscreen_watermark_generator: Callable = (
         lambda current_user: current_user.user_name
     )
+
+    # 用于登录密码加密传输的RSA公钥文件路径
+    rsa_public_key_path: str = "magic_dash_pro_public_key.pem"
+
+    # 用于登录密码加密传输的RSA私钥文件路径
+    rsa_private_key_path: str = "magic_dash_pro_private_key.pem"

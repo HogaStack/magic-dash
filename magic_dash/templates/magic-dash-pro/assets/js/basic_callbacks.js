@@ -139,6 +139,60 @@ window.dash_clientside = Object.assign({}, window.dash_clientside, {
                     [true, 'antd-full-screen-exit'] :
                     [false, 'antd-full-screen']
             )
+        },
+        // 使用Web Crypto API加密密码
+        encryptPassword: async (password, publicKeyPem) => {
+            if (!password || !publicKeyPem) {
+                return null;
+            }
+
+            // 将PEM格式的公钥转换为ArrayBuffer
+            const pemHeader = '-----BEGIN PUBLIC KEY-----';
+            const pemFooter = '-----END PUBLIC KEY-----';
+            const pemContents = publicKeyPem
+                .replace(pemHeader, '')
+                .replace(pemFooter, '')
+                .replace(/\s/g, '');
+
+            const binaryString = window.atob(pemContents);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+
+            // 导入公钥
+            const publicKey = await window.crypto.subtle.importKey(
+                'spki',
+                bytes.buffer,
+                {
+                    name: 'RSA-OAEP',
+                    hash: 'SHA-256'
+                },
+                false,
+                ['encrypt']
+            );
+
+            // 加密密码
+            const encoder = new TextEncoder();
+            const passwordData = encoder.encode(password);
+
+            const encryptedData = await window.crypto.subtle.encrypt(
+                {
+                    name: 'RSA-OAEP'
+                },
+                publicKey,
+                passwordData
+            );
+
+            // 将加密后的数据转换为Base64字符串
+            const encryptedBytes = new Uint8Array(encryptedData);
+            let binary = '';
+            for (let i = 0; i < encryptedBytes.byteLength; i++) {
+                binary += String.fromCharCode(encryptedBytes[i]);
+            }
+            const encryptedBase64 = window.btoa(binary);
+
+            return encryptedBase64;
         }
     }
 });

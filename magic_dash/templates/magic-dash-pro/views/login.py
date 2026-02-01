@@ -1,9 +1,10 @@
-from dash import html
-import feffery_utils_components as fuc
+from dash import html, dcc
 import feffery_antd_components as fac
+import feffery_utils_components as fuc
 from feffery_dash_utils.style_utils import style
 
 from configs import BaseConfig, LayoutConfig
+from utils.crypto_utils import load_rsa_public_key
 
 # 令绑定的回调函数子模块生效
 import callbacks.login_c  # noqa: F401
@@ -11,6 +12,9 @@ import callbacks.login_c  # noqa: F401
 
 def render():
     """渲染用户登录页面"""
+
+    # 加载RSA公钥
+    rsa_public_key = load_rsa_public_key()
 
     return fac.AntdRow(
         [
@@ -134,6 +138,12 @@ def render():
                                 ),
                                 fac.AntdForm(
                                     [
+                                        # 存储RSA公钥（从文件读取初始值）
+                                        dcc.Store(
+                                            id="login-rsa-pubkey", data=rsa_public_key
+                                        ),
+                                        # 存储加密后的密码
+                                        dcc.Store(id="login-password-crypto"),
                                         fac.AntdFormItem(
                                             fac.AntdInput(
                                                 id="login-user-name",
@@ -145,6 +155,7 @@ def render():
                                                 ),
                                                 autoComplete="off",
                                             ),
+                                            id="login-user-name-form-item",
                                             label="用户名",
                                         ),
                                         fac.AntdFormItem(
@@ -158,6 +169,7 @@ def render():
                                                     className="global-help-text",
                                                 ),
                                             ),
+                                            id="login-password-form-item",
                                             label="密码",
                                         ),
                                         fac.AntdCheckbox(
@@ -173,8 +185,6 @@ def render():
                                             style=style(marginTop=18),
                                         ),
                                     ],
-                                    id="login-form",
-                                    enableBatchControl=True,
                                     layout="vertical",
                                     style=style(width=350),
                                 ),

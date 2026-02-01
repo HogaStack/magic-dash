@@ -7,30 +7,56 @@ from user_agents import parse
 from dash import set_props, dcc
 from flask_login import login_user
 import feffery_antd_components as fac
-from dash.dependencies import Input, Output, State
 from flask_principal import identity_changed, Identity
+from dash.dependencies import Input, Output, State, ClientsideFunction
 
 from server import app, User
 from models.users import Users
 from configs import BaseConfig
 from models.logs import LoginLogs
+from utils.crypto_utils import decrypt_password
+
+
+app.clientside_callback(
+    # 基于浏览器内置Web Crypto API加密密码
+    ClientsideFunction(namespace="clientside_basic", function_name="encryptPassword"),
+    Output("login-password-crypto", "data"),
+    Input("login-password", "value"),
+    State("login-rsa-pubkey", "data"),
+)
 
 
 @app.callback(
-    [Output("login-form", "helps"), Output("login-form", "validateStatuses")],
+    [
+        Output("login-user-name-form-item", "help"),
+        Output("login-password-form-item", "help"),
+        Output("login-user-name-form-item", "validateStatus"),
+        Output("login-password-form-item", "validateStatus"),
+    ],
     [Input("login-button", "nClicks"), Input("login-password", "nSubmit")],
-    [State("login-form", "values"), State("login-remember-me", "checked")],
+    [
+        State("login-user-name", "value"),
+        State("login-password-crypto", "data"),
+        State("login-remember-me", "checked"),
+    ],
     running=[
         [Output("login-button", "loading"), True, False],
     ],
     prevent_initial_call=True,
 )
-def handle_login(nClicks, nSubmit, values, remember_me):
+def handle_login(nClicks, nSubmit, user_name, password_crypto, remember_me):
     """处理用户登录逻辑"""
 
     time.sleep(0.25)
 
-    values = values or {}
+    # 解密前端传输的加密密码
+    password = decrypt_password(password_crypto)
+
+    # 构造兼容原有判断逻辑的表单values
+    values = {
+        "login-user-name": user_name,
+        "login-password": password,
+    }
 
     # 提取当前登录行为对应的系统、浏览器信息
     user_agent = parse(str(request.user_agent))
@@ -55,15 +81,11 @@ def handle_login(nClicks, nSubmit, values, remember_me):
 
         return [
             # 表单帮助信息
-            {
-                "用户名": "请输入用户名" if not values.get("login-user-name") else None,
-                "密码": "请输入密码" if not values.get("login-password") else None,
-            },
+            "请输入用户名" if not values.get("login-user-name") else None,
+            "请输入密码" if not values.get("login-password") else None,
             # 表单帮助状态
-            {
-                "用户名": "error" if not values.get("login-user-name") else None,
-                "密码": "error" if not values.get("login-password") else None,
-            },
+            "error" if not values.get("login-user-name") else None,
+            "error" if not values.get("login-password") else None,
         ]
 
     # 校验用户登录信息
@@ -96,9 +118,11 @@ def handle_login(nClicks, nSubmit, values, remember_me):
 
         return [
             # 表单帮助信息
-            {"用户名": "用户不存在"},
+            "用户不存在",
+            None,
             # 表单帮助状态
-            {"用户名": "error"},
+            "error",
+            None,
         ]
 
     else:
@@ -129,9 +153,11 @@ def handle_login(nClicks, nSubmit, values, remember_me):
 
             return [
                 # 表单帮助信息
-                {"密码": "密码错误"},
+                None,
+                "密码错误",
                 # 表单帮助状态
-                {"密码": "error"},
+                None,
+                "error",
             ]
 
         # 更新用户信息表session_token字段
@@ -174,4 +200,4 @@ def handle_login(nClicks, nSubmit, values, remember_me):
             login_datetime=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         )
 
-    return [{}, {}]
+    return [None] * 4

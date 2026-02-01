@@ -9,3 +9,4 @@ flask-compress
 flask-principal
 yarl
 pandas
+cryptography

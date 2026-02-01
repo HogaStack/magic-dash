@@ -1,21 +1,67 @@
+import os
 import questionary
 from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 from werkzeug.security import generate_password_hash
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.backends import default_backend
 
 from models import db
 
 # 导入相关数据表模型
 from .users import Users
 from .departments import Departments
-from configs import AuthConfig
+from configs import AuthConfig, BaseConfig
 
 # 创建rich console实例
 console = Console()
 
 # 创建表（如果表不存在）
 db.create_tables([Users, Departments])
+
+
+def generate_rsa_key_pair():
+    """生成RSA密钥对并保存到项目根目录"""
+
+    private_key_path = BaseConfig.rsa_private_key_path
+    public_key_path = BaseConfig.rsa_public_key_path
+
+    # 生成RSA密钥对
+    private_key = rsa.generate_private_key(
+        public_exponent=65537, key_size=2048, backend=default_backend()
+    )
+
+    # 序列化私钥
+    private_pem = private_key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption(),
+    )
+
+    # 序列化公钥
+    public_key = private_key.public_key()
+    public_pem = public_key.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo,
+    )
+
+    # 保存到文件
+    with open(private_key_path, "wb") as f:
+        f.write(private_pem)
+
+    with open(public_key_path, "wb") as f:
+        f.write(public_pem)
+
+
+def check_rsa_keys_exist():
+    """检查RSA密钥对文件是否已存在"""
+
+    return os.path.exists(BaseConfig.rsa_private_key_path) and os.path.exists(
+        BaseConfig.rsa_public_key_path
+    )
+
 
 # 统一的questionary样式
 custom_style = questionary.Style(
@@ -42,6 +88,68 @@ if __name__ == "__main__":
     # 记录执行结果和管理员信息
     executed_operations = []
     admin_created = False
+
+    # 0. RSA密钥对生成
+    console.print("\n[dim]请确认以下安全密钥操作：[/dim]\n")
+
+    # 检查是否已存在RSA密钥对
+    if check_rsa_keys_exist():
+        # 已存在密钥，询问是否覆盖
+        confirm_override = questionary.confirm(
+            f"检测到已存在RSA密钥对文件（{BaseConfig.rsa_private_key_path} 和 {BaseConfig.rsa_public_key_path}），是否重新生成并覆盖？",
+            default=False,
+            style=custom_style,
+        ).ask()
+
+        if confirm_override:
+            try:
+                generate_rsa_key_pair()
+                executed_operations.append(
+                    (
+                        "RSA密钥对",
+                        f"已重新生成并覆盖\n    私钥: {BaseConfig.rsa_private_key_path}\n    公钥: {BaseConfig.rsa_public_key_path}",
+                        "yellow",
+                        "green",
+                    )
+                )
+            except Exception as e:
+                executed_operations.append(
+                    ("RSA密钥对", f"重新生成失败: {str(e)}", "yellow", "red")
+                )
+        else:
+            executed_operations.append(
+                (
+                    "RSA密钥对",
+                    f"保留现有密钥文件\n    私钥: {BaseConfig.rsa_private_key_path}\n    公钥: {BaseConfig.rsa_public_key_path}",
+                    "dim",
+                    "dim",
+                )
+            )
+    else:
+        # 不存在密钥，询问是否生成
+        confirm_generate = questionary.confirm(
+            "当前项目根目录中不存在RSA密钥对文件，是否生成新的RSA密钥对？",
+            default=True,
+            style=custom_style,
+        ).ask()
+
+        if confirm_generate:
+            try:
+                generate_rsa_key_pair()
+                executed_operations.append(
+                    (
+                        "RSA密钥对",
+                        f"已生成\n    私钥: {BaseConfig.rsa_private_key_path}\n    公钥: {BaseConfig.rsa_public_key_path}",
+                        "yellow",
+                        "green",
+                    )
+                )
+            except Exception as e:
+                executed_operations.append(
+                    ("RSA密钥对", f"生成失败: {str(e)}", "yellow", "red")
+                )
+        else:
+            executed_operations.append(("RSA密钥对", "已跳过生成", "dim", "dim"))
 
     # 1. 询问是否重置部门表
     console.print("\n[dim]请确认以下数据库操作：[/dim]\n")
