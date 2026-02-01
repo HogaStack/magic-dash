@@ -13,12 +13,7 @@ from feffery_dash_utils.version_utils import (
 check_python_version(min_version="3.8", max_version="3.13")
 # 检查关键依赖库版本
 check_dependencies_version(
-    rules=[
-        {"name": "dash", "specifier": ">=3.3.0,<4.0.0"},
-        {"name": "feffery_antd_components", "specifier": ">=0.4.0,<0.5.0"},
-        {"name": "feffery_utils_components", "specifier": ">=0.3.0,<0.4.0"},
-        {"name": "feffery_dash_utils", "specifier": ">=0.2.6"},
-    ]
+    requirements_file="./requirements.txt",
 )
 
 app = dash.Dash(
