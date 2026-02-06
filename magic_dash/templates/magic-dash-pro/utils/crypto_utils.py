@@ -13,18 +13,14 @@ from cryptography.hazmat.backends import default_backend
 from configs import BaseConfig
 
 
-def load_rsa_public_key():
-    """加载RSA公钥文件内容
+# 模块级别加载RSA公钥和私钥（只加载一次）
+with open(BaseConfig.rsa_public_key_path, "r", encoding="utf-8") as f:
+    rsa_public_key = f.read()
 
-    从项目根目录读取public_key.pem文件
-
-    Returns:
-        str: 公钥PEM格式字符串
-        None: 加载失败时返回None
-    """
-
-    with open(BaseConfig.rsa_public_key_path, "r", encoding="utf-8") as f:
-        return f.read()
+with open(BaseConfig.rsa_private_key_path, "rb") as f:
+    private_key = serialization.load_pem_private_key(
+        f.read(), password=None, backend=default_backend()
+    )
 
 
 def decrypt_password(encrypted_base64: str) -> str:
@@ -49,12 +45,6 @@ def decrypt_password(encrypted_base64: str) -> str:
         return None
 
     try:
-        # 读取私钥
-        with open(BaseConfig.rsa_private_key_path, "rb") as f:
-            private_key = serialization.load_pem_private_key(
-                f.read(), password=None, backend=default_backend()
-            )
-
         # Base64解码加密数据
         encrypted_data = base64.b64decode(encrypted_base64)
 

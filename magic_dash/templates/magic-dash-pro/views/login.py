@@ -4,7 +4,7 @@ import feffery_utils_components as fuc
 from feffery_dash_utils.style_utils import style
 
 from configs import BaseConfig, LayoutConfig
-from utils.crypto_utils import load_rsa_public_key
+from utils.crypto_utils import rsa_public_key
 
 # 令绑定的回调函数子模块生效
 import callbacks.login_c  # noqa: F401
@@ -12,9 +12,6 @@ import callbacks.login_c  # noqa: F401
 
 def render():
     """渲染用户登录页面"""
-
-    # 加载RSA公钥
-    rsa_public_key = load_rsa_public_key()
 
     return fac.AntdRow(
         [
