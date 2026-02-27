@@ -1,7 +1,7 @@
 dash>=3.4.0,<4.0.0
 feffery_antd_components>=0.4.4,<0.5.0
 feffery_dash_utils>=0.2.6
-feffery_utils_components>=0.3.5,<0.4.0
+feffery_utils_components>=0.3.6,<0.4.0
 Flask_Login
 peewee
 user_agents
