@@ -1,6 +1,8 @@
+import io
+import csv
 import time
+
 import dash
-import pandas as pd
 from datetime import datetime
 from dash import set_props, dcc
 import feffery_antd_components as fac
@@ -151,26 +153,33 @@ def handle_login_logs_export_data(confirmCounts):
     time.sleep(0.5)
 
     # 查询全部数据记录
-    all_login_logs = pd.DataFrame(LoginLogs.get_logs())
+    all_login_logs = LoginLogs.get_logs()
 
     # 若登录日志记录不为空
-    if not all_login_logs.empty:
+    if all_login_logs:
         # 处理登录时间字段格式
-        all_login_logs["login_datetime"] = all_login_logs["login_datetime"].dt.strftime(
-            "%Y-%m-%d %H:%M:%S"
-        )
+        for item in all_login_logs:
+            item["login_datetime"] = item["login_datetime"].strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
+
+        # 生成CSV字符串
+        output = io.StringIO()
+        writer = csv.DictWriter(output, fieldnames=all_login_logs[0].keys())
+        writer.writeheader()
+        writer.writerows(all_login_logs)
+        csv_string = output.getvalue()
 
         # 返回下载文件流
         set_props(
             "global-download",
             {
-                "data": dcc.send_data_frame(
-                    all_login_logs.to_csv,
+                "data": dcc.send_string(
+                    csv_string,
                     "登录日志导出结果{}.csv".format(
                         datetime.now().strftime("%Y%m%d%H%M%S")
                     ),
-                    index=False,
-                    encoding="utf-8",
+                    type="text/csv",
                 )
             },
         )
