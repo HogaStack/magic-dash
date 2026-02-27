@@ -169,6 +169,24 @@ def render():
                                             id="login-password-form-item",
                                             label="密码",
                                         ),
+                                        (
+                                            fac.AntdFormItem(
+                                                fuc.FefferySliderCaptcha(
+                                                    id="login-slider-captcha",
+                                                    block=True,
+                                                    mode="slider",
+                                                    tipText={
+                                                        "default": "请按住滑块，拖动到最右边",
+                                                        "moving": "请按住滑块，拖动到最右边",
+                                                        "error": "验证失败，请重新操作",
+                                                        "success": "验证成功",
+                                                    },
+                                                    style=style(width="100%"),
+                                                )
+                                            )
+                                            if BaseConfig.enable_login_captcha
+                                            else None
+                                        ),
                                         fac.AntdCheckbox(
                                             id="login-remember-me", label="记住我"
                                         ),

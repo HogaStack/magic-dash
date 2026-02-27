@@ -38,13 +38,16 @@ app.clientside_callback(
         State("login-user-name", "value"),
         State("login-password-crypto", "data"),
         State("login-remember-me", "checked"),
+        State("login-slider-captcha", "verifyResult", allow_optional=True),
     ],
     running=[
         [Output("login-button", "loading"), True, False],
     ],
     prevent_initial_call=True,
 )
-def handle_login(nClicks, nSubmit, user_name, password_crypto, remember_me):
+def handle_login(
+    nClicks, nSubmit, user_name, password_crypto, remember_me, slider_verify_result
+):
     """处理用户登录逻辑"""
 
     time.sleep(0.25)
@@ -87,6 +90,24 @@ def handle_login(nClicks, nSubmit, user_name, password_crypto, remember_me):
             "error" if not values.get("login-user-name") else None,
             "error" if not values.get("login-password") else None,
         ]
+
+    # 处理滑块验证启用场景
+    if BaseConfig.enable_login_captcha:
+        # 验证通过
+        if slider_verify_result and slider_verify_result.get("status") == "success":
+            pass
+        else:
+            set_props(
+                "global-message",
+                {
+                    "children": fac.AntdMessage(
+                        type="error",
+                        content="请先完成滑块验证",
+                    )
+                },
+            )
+
+            return [None] * 4
 
     # 校验用户登录信息
 

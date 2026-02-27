@@ -56,3 +56,6 @@ class BaseConfig:
 
     # 用于登录密码加密传输的RSA私钥文件路径
     rsa_private_key_path: str = "magic_dash_pro_private_key.pem"
+
+    # 针对用户登录页面，是否添加额外的滑块验证
+    enable_login_captcha: bool = False
