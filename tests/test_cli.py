@@ -3,9 +3,12 @@ import subprocess
 import pytest
 
 
-def run_command(cmd, input_text=None):
+def run_command(cmd, input_text=None, env=None):
     """执行命令并返回结果"""
     encoding = "utf-8"
+    process_env = os.environ.copy()
+    if env:
+        process_env.update(env)
 
     if input_text:
         process = subprocess.Popen(
@@ -16,6 +19,7 @@ def run_command(cmd, input_text=None):
             stderr=subprocess.PIPE,
             encoding=encoding,
             errors="replace",
+            env=process_env,
         )
         stdout, stderr = process.communicate(input=input_text)
         returncode = process.returncode
@@ -26,6 +30,7 @@ def run_command(cmd, input_text=None):
             capture_output=True,
             encoding=encoding,
             errors="replace",
+            env=process_env,
         )
         returncode = result.returncode
         stdout = result.stdout or ""
@@ -66,7 +71,7 @@ def test_create_with_name(tmp_path, template_name):
     """测试 create 命令创建项目"""
     project_path = tmp_path / template_name
 
-    input_text = "\n\n"
+    input_text = "\n"
     returncode, stdout, stderr = run_command(
         f"magic-dash create --name {template_name} --path {tmp_path}",
         input_text=input_text,
@@ -82,12 +87,13 @@ def test_create_with_name(tmp_path, template_name):
 
 def test_create_magic_dash_pro_fastapi_backend(tmp_path):
     """测试 magic-dash-pro 模板的 FastAPI 后端变体生成"""
-    project_path = tmp_path / "magic-dash-pro-fastapi"
+    project_path = tmp_path / "magic-dash-pro"
 
-    input_text = "FastAPI\n\n\n"
+    input_text = "\n"
     returncode, stdout, stderr = run_command(
         f"magic-dash create --name magic-dash-pro --path {tmp_path}",
         input_text=input_text,
+        env={"MAGIC_DASH_PRO_BACKEND": "fastapi"},
     )
 
     assert returncode == 0, f"命令执行失败: {stderr}"
@@ -111,10 +117,11 @@ def test_create_magic_dash_pro_default_flask_backend(tmp_path):
     """测试 magic-dash-pro 模板默认使用 Flask 后端"""
     project_path = tmp_path / "magic-dash-pro"
 
-    input_text = "\n\n\n"
+    input_text = "\n"
     returncode, stdout, stderr = run_command(
         f"magic-dash create --name magic-dash-pro --path {tmp_path}",
         input_text=input_text,
+        env={"MAGIC_DASH_PRO_BACKEND": "flask"},
     )
 
     assert returncode == 0, f"命令执行失败: {stderr}"
@@ -143,13 +150,30 @@ def test_create_fastapi_variant_directly_is_invalid():
     assert returncode != 0, "FastAPI变体不应作为顶层模板直接生成"
 
 
-def test_create_cancel(tmp_path):
-    """测试取消创建项目"""
+def test_create_after_project_name_without_confirm(tmp_path):
+    """测试项目名称输入完成后直接创建项目"""
     project_path = tmp_path / "simple-tool"
-    input_text = "\nn\n"
+    input_text = "\n"
     returncode, stdout, stderr = run_command(
         f"magic-dash create --name simple-tool --path {tmp_path}", input_text=input_text
     )
 
-    assert returncode == 0, "取消操作应该正常退出"
-    assert not os.path.exists(project_path), "项目不应被创建"
+    assert returncode == 0, f"命令执行失败: {stderr}"
+    assert os.path.exists(project_path), f"项目目录未创建: {project_path}"
+    assert "确认生成项目" not in stdout
+
+
+def test_create_reprompt_when_project_folder_exists(tmp_path):
+    """测试项目名称已存在时提示并重新输入项目名称"""
+    existing_path = tmp_path / "simple-tool"
+    project_path = tmp_path / "simple-tool-new"
+    existing_path.mkdir()
+
+    input_text = "\nsimple-tool-new\n"
+    returncode, stdout, stderr = run_command(
+        f"magic-dash create --name simple-tool --path {tmp_path}", input_text=input_text
+    )
+
+    assert returncode == 0, f"命令执行失败: {stderr}"
+    assert os.path.exists(project_path), f"项目目录未创建: {project_path}"
+    assert "simple-tool-new" in stdout

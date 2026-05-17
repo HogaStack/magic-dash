@@ -9,7 +9,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-__version__ = "0.5.0rc2"
+__version__ = "0.5.0rc3"
 
 
 # 创建rich console实例
@@ -140,38 +140,64 @@ def _create(name, path):
     project_default_name = name
 
     if name == "magic-dash-pro":
-        backend_name = click.prompt(
-            "后端类型",
-            default="Flask",
-            type=click.Choice(["Flask", "FastAPI"], case_sensitive=False),
-            show_default=True,
-        )
-        normalized_backend_name = backend_name.lower()
+        normalized_backend_name = os.environ.get("MAGIC_DASH_PRO_BACKEND", "").lower()
+        if normalized_backend_name not in PRO_BACKEND_TEMPLATES:
+            backend_choices = [
+                questionary.Choice(
+                    title=[
+                        ("class:highlighted", "Flask"),
+                        ("class:text", " - 默认后端，基于flask-login"),
+                    ],
+                    value="flask",
+                ),
+                questionary.Choice(
+                    title=[
+                        ("class:highlighted", "FastAPI"),
+                        ("class:text", " - 基于fastapi-login"),
+                    ],
+                    value="fastapi",
+                ),
+            ]
+
+            normalized_backend_name = questionary.select(
+                "请选择magic-dash-pro模板后端类型：",
+                choices=backend_choices,
+                default="flask",
+                style=custom_style,
+                instruction="(使用方向键选择，回车确认，Esc 取消)",
+            ).ask()
+
+            if normalized_backend_name is None:
+                console.print("\n[yellow bold]已取消项目生成[/yellow bold]\n")
+                return
+
         source_template_name = PRO_BACKEND_TEMPLATES[normalized_backend_name]
 
-        if normalized_backend_name == "fastapi":
-            project_default_name = source_template_name
-
+        backend_name = "FastAPI" if normalized_backend_name == "fastapi" else "Flask"
         console.print(f"[bold]后端类型：[/bold] [cyan]{backend_name}[/cyan]")
 
-    # 从命令行交互式输入获取项目名称
-    project_name = click.prompt(
-        "项目名称",
-        default=project_default_name,
-        type=click.STRING,
-        show_default=True,
-    )
+    while True:
+        # 从命令行交互式输入获取项目名称
+        project_name = click.prompt(
+            "项目名称",
+            default=project_default_name,
+            type=click.STRING,
+            show_default=True,
+        )
+        project_path = os.path.join(path, project_name)
+
+        if not os.path.exists(project_path):
+            break
+
+        console.print(
+            f"[yellow]目标路径下已存在同名文件夹[/yellow] [cyan]{project_name}[/cyan]，"
+            "请重新输入项目名称。"
+        )
+        project_default_name = project_name
 
     # 显示生成信息
     console.print(f"\n[bold]目标路径：[/bold] [cyan]{path}[/cyan]")
     console.print(f"[bold]项目名称：[/bold] [cyan]{project_name}[/cyan]")
-
-    # 确认生成
-    console.print()
-    console.print("[dim]（输入 y 确认，输入 n 取消，直接回车使用默认选项 Y）[/dim]")
-    if not click.confirm("确认生成项目？", default=True):
-        console.print("\n[yellow bold]已取消项目生成[/yellow bold]\n")
-        return
 
     # 生成项目
     console.print("\n[cyan]正在生成项目...[/cyan]")
@@ -183,7 +209,7 @@ def _create(name, path):
             "templates",
             source_template_name,
         ),
-        dst=os.path.join(path, source_template_name),
+        dst=project_path,
     )
 
     # 替换版本号 (仅 magic-dash 系列模板)
@@ -192,9 +218,7 @@ def _create(name, path):
         "magic-dash-pro",
         "magic-dash-pro-fastapi",
     ):
-        base_config_path = os.path.join(
-            path, source_template_name, "configs", "base_config.py"
-        )
+        base_config_path = os.path.join(project_path, "configs", "base_config.py")
         if os.path.exists(base_config_path):
             with open(base_config_path, "r", encoding="utf-8") as f:
                 content = f.read()
@@ -205,12 +229,6 @@ def _create(name, path):
             )
             with open(base_config_path, "w", encoding="utf-8") as f:
                 f.write(content)
-
-    # 重命名项目
-    os.rename(
-        src=os.path.join(path, source_template_name),
-        dst=os.path.join(path, project_name),
-    )
 
     # 显示成功信息
     success_msg = (
