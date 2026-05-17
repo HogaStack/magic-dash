@@ -58,6 +58,8 @@ def test_list():
     for template in templates:
         assert template in stdout, f"未找到模板 '{template}'"
 
+    assert "magic-dash-pro-fastapi" not in stdout, "FastAPI变体不应在顶层模板列表中展示"
+
 
 @pytest.mark.parametrize("template_name", ["simple-tool", "magic-dash"])
 def test_create_with_name(tmp_path, template_name):
@@ -78,12 +80,67 @@ def test_create_with_name(tmp_path, template_name):
         assert os.path.exists(os.path.join(project_path, file)), f"{file} 不存在"
 
 
+def test_create_magic_dash_pro_fastapi_backend(tmp_path):
+    """测试 magic-dash-pro 模板的 FastAPI 后端变体生成"""
+    project_path = tmp_path / "magic-dash-pro-fastapi"
+
+    input_text = "FastAPI\n\n\n"
+    returncode, stdout, stderr = run_command(
+        f"magic-dash create --name magic-dash-pro --path {tmp_path}",
+        input_text=input_text,
+    )
+
+    assert returncode == 0, f"命令执行失败: {stderr}"
+    assert os.path.exists(project_path), f"项目目录未创建: {project_path}"
+
+    server_path = os.path.join(project_path, "server.py")
+    requirements_path = os.path.join(project_path, "requirements.txt")
+    assert os.path.exists(server_path), "server.py 不存在"
+    assert os.path.exists(requirements_path), "requirements.txt 不存在"
+
+    with open(server_path, encoding="utf-8") as f:
+        server_content = f.read()
+    with open(requirements_path, encoding="utf-8") as f:
+        requirements_content = f.read()
+
+    assert 'backend="fastapi"' in server_content
+    assert "fastapi-login" in requirements_content
+
+
+def test_create_magic_dash_pro_default_flask_backend(tmp_path):
+    """测试 magic-dash-pro 模板默认使用 Flask 后端"""
+    project_path = tmp_path / "magic-dash-pro"
+
+    input_text = "\n\n\n"
+    returncode, stdout, stderr = run_command(
+        f"magic-dash create --name magic-dash-pro --path {tmp_path}",
+        input_text=input_text,
+    )
+
+    assert returncode == 0, f"命令执行失败: {stderr}"
+    assert os.path.exists(project_path), f"项目目录未创建: {project_path}"
+
+    with open(os.path.join(project_path, "requirements.txt"), encoding="utf-8") as f:
+        requirements_content = f.read()
+
+    assert "Flask_Login" in requirements_content
+    assert "fastapi-login" not in requirements_content
+
+
 def test_create_invalid_name():
     """测试错误处理 - 不存在的模板名称"""
     returncode, stdout, stderr = run_command(
         "magic-dash create --name nonexistent-template"
     )
     assert returncode != 0, "应该返回错误但成功了"
+
+
+def test_create_fastapi_variant_directly_is_invalid():
+    """测试 FastAPI 变体不能作为顶层模板直接选择"""
+    returncode, stdout, stderr = run_command(
+        "magic-dash create --name magic-dash-pro-fastapi"
+    )
+    assert returncode != 0, "FastAPI变体不应作为顶层模板直接生成"
 
 
 def test_create_cancel(tmp_path):
