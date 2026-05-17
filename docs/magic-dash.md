@@ -1,138 +1,159 @@
-# `magic-dash`
+# `magic-dash` 模板介绍
 
-基础多页面应用模板。
+`magic-dash` 是基础多页面 [`Dash`](https://github.com/plotly/dash) 应用模板，用于快速搭建带侧边菜单、统一页面框架、路由分发、状态页和可扩展配置的后台应用雏形。
 
-## 1 创建方式
+## 适用场景
+
+优先选择 `magic-dash` 的典型情况：
+
+- 需要多个业务页面。
+- 需要统一的侧边菜单和主内容区。
+- 需要维护页面路由、页面标题、菜单展开状态。
+- 需要独立页面，例如大屏页、打印页、嵌入页。
+- 需要动态路径或详情页，例如 `/core/order/123`。
+- 暂时不需要登录、角色权限和数据库模型。
+
+如果项目需要用户体系、权限和后台管理能力，应选择 [`magic-dash-pro`](./magic-dash-pro.md)。
+
+## 创建方式
 
 ```bash
 magic-dash create --name magic-dash
 ```
 
-## 2 应用初始化启动
-
-- 安装项目依赖库
+指定生成目录：
 
 ```bash
-pip install -r requirements.txt
+magic-dash create --name magic-dash --path ./workspace
 ```
 
-- 启动应用
+## 启动方式
 
 ```bash
+cd magic-dash
+pip install -r requirements.txt
 python app.py
 ```
 
-- 访问应用
+默认访问地址：
 
-应用默认地址：http://127.0.0.1:8050
-
-## 3 项目目录结构
-
-```bash
-magic-dash
- ┣ assets # 静态资源目录
- ┃ ┣ css # 样式文件目录
- ┃ ┣ imgs # 图片文件目录
- ┃ ┣ js # 浏览器回调函数目录
- ┃ ┗ favicon.ico # 网页图标
- ┣ callbacks # 回调函数模块
- ┣ components # 自定义组件模块
- ┣ configs # 配置参数模块
- ┣ utils # 工具函数模块
- ┣ views # 页面模块
- ┣ server.py # 应用初始化模块
- ┣ app.py # 应用主文件
- ┗ requirements.txt # 项目依赖信息
+```text
+http://127.0.0.1:8050
 ```
 
-## 4 主要功能配置说明
+## 目录结构
 
-### 4.1 基础配置
-
-#### 4.1.1 浏览器版本检测&限制
-
-> `BaseConfig.min_browser_versions`
-
-针对用户浏览器最低版本检测功能，配置所依赖的相关浏览器类型及最低版本信息，默认值：
-
-```python
-[
-    {"browser": "Chrome", "version": 88},
-    {"browser": "Firefox", "version": 78},
-    {"browser": "Edge", "version": 100},
-]
+```text
+magic-dash/
+├─ assets/
+│  ├─ css/
+│  ├─ imgs/
+│  ├─ js/
+│  └─ favicon.ico
+├─ callbacks/
+│  └─ core_pages_c/
+├─ components/
+├─ configs/
+│  ├─ base_config.py
+│  ├─ layout_config.py
+│  └─ router_config.py
+├─ utils/
+├─ views/
+│  ├─ core_pages/
+│  └─ status_pages/
+├─ server.py
+├─ app.py
+└─ requirements.txt
 ```
 
-> `BaseConfig.strict_browser_type_check`
+## 核心模块
 
-针对用户浏览器最低版本检测功能，配置是否开启严格的浏览器类型限制，默认值：`False`，设置为`True`后，将依据`min_browser_versions`参数，直接拦截不在所列举范围内的浏览器类型。
+| 文件或目录 | 职责 |
+| --- | --- |
+| `app.py` | 应用入口、根布局、根路由回调、状态页分发 |
+| `server.py` | 创建 `Dash` 应用实例，暴露 `server`，执行浏览器版本拦截 |
+| `configs/base_config.py` | 应用标题、版本、浏览器版本、更新日志弹窗配置 |
+| `configs/layout_config.py` | 侧边栏宽度、页面呈现类型、页面搜索配置 |
+| `configs/router_config.py` | 路由、菜单、独立页面、通配页面配置 |
+| `components/core_side_menu.py` | 侧边菜单渲染 |
+| `components/page_content.py` | 页面内容分发 |
+| `views/core_pages/` | 核心业务页面 |
+| `views/status_pages/` | `404`、`500` 状态页 |
+| `callbacks/core_pages_c/` | 业务页面回调模块 |
+| `assets/js/basic_callbacks.js` | 浏览器端回调函数 |
 
-#### 4.1.2 应用基础标题
+## 路由机制
 
-> `BaseConfig.app_title`
+模板使用 `FefferyLocation` 监听浏览器地址变化，根回调会根据当前 `pathname` 执行以下逻辑：
 
-设置应用基础标题，默认值：`Magic Dash`。
+1. 如果访问 `/404-demo` 或 `/500-demo`，渲染对应状态页。
+2. 如果 `pathname` 存在于 `RouterConfig.valid_pathnames`，渲染核心页面。
+3. 如果 `pathname` 命中 `RouterConfig.valid_pathnames` 中的正则通配规则，渲染通配页面。
+4. 其他情况返回 `404` 页面。
 
-#### 4.1.3 应用版本号
+核心页面再由 `views/core_pages/__init__.py` 判断是否需要完整框架渲染或独立渲染。
 
-> `BaseConfig.app_version`
+## 页面类型
 
-设置应用版本号。
+### 普通核心页面
 
-### 4.2 布局配置
+普通核心页面会进入统一应用框架，通常带侧边栏、页首、页面搜索和主内容区。适合绝大多数后台业务页。
 
-#### 4.2.1 核心页面侧边栏宽度
+相关配置：
 
-> `LayoutConfig.core_side_width`
+- `RouterConfig.valid_pathnames`
+- `RouterConfig.core_side_menu`
+- `components/page_content.py`
+- `views/core_pages/`
 
-设置核心页面侧边栏像素宽度，默认值：`350`。
+### 独立页面
 
-#### 4.2.2 核心页面呈现类型
+独立页面会跳过核心框架，直接渲染页面内容。适合大屏、报表打印、第三方嵌入等场景。
 
-> `LayoutConfig.core_layout_type`
+相关配置：
 
-设置核心页面呈现类型，默认值：`single`，可选项有`single`（单页面形式）、`tabs`（多标签页形式）。
+- `RouterConfig.independent_core_pathnames`
+- `views/core_pages/__init__.py`
 
-#### 4.2.3 页面搜索框展示
+### 通配页面
 
-> `LayoutConfig.show_core_page_search`
+通配页面基于 `re.Pattern` 匹配动态路径，适合详情页和参数化页面。
 
-设置页首中的页面搜索框是否展示，默认值：`True`。
+相关配置：
 
-### 4.3 路由配置
+- `RouterConfig.wildcard_patterns`
+- `RouterConfig.valid_pathnames`
+- `RouterConfig.independent_core_pathnames`
 
-#### 4.3.1 首页路径别名
+## 布局能力
 
-> `RouterConfig.index_pathname`
+`LayoutConfig.core_layout_type` 支持两种核心内容区呈现方式：
 
-设置首页路径别名，默认值：`/index`。
+- `single`：单页面模式，路由切换时替换主内容区。
+- `tabs`：多标签页模式，适合需要同时打开多个业务页面的后台应用。
 
-#### 4.3.2 核心页面侧边菜单结构
+`LayoutConfig.show_core_page_search` 控制页首页面搜索框是否展示。
 
-> `RouterConfig.core_side_menu`
+## 内置示例页面
 
-核心页面侧边菜单结构。
+模板包含以下示例页面，用于展示常见能力：
 
-#### 4.3.3 有效页面路径&标题映射
+- 首页。
+- 普通核心页面。
+- 多级子菜单页面。
+- 独立页面入口和独立页面示例。
+- 独立通配页面入口和动态路径示例。
+- `URL` 参数提取示例。
+- `404` 和 `500` 状态页。
 
-> `RouterConfig.valid_pathnames`
+## 浏览器版本检查
 
-配置有效页面路径&标题映射参数，定义*通配页面规则*时建议配合`RouterConfig.wildcard_patterns`参数使用。
+`server.py` 会在请求进入应用前解析 `User-Agent`，基于 `BaseConfig.min_browser_versions` 拦截低版本浏览器，并默认直接拦截 `Internet Explorer`。
 
-#### 4.3.4 独立渲染页面路径
+可通过 `BaseConfig.strict_browser_type_check` 控制是否只允许配置表中声明的浏览器类型。
 
-> `RouterConfig.independent_core_pathnames`
+## 进一步阅读
 
-设置核心页面中需要进行独立渲染的路径列表。
-
-#### 4.3.5 侧边子菜单随访问自动展开
-
-> `RouterConfig.side_menu_open_keys`
-
-针对侧边菜单结构中隶属于子菜单的菜单项，配置对应需展开的上层菜单逐级`key`值列表。
-
-#### 4.3.6 通配页面模式字典
-
-> `RouterConfig.wildcard_patterns`
-
-基于正则表达式，配置应用中涉及到的通配页面模式字典。
+- [配置参数说明](./configuration.md)
+- [二次开发介绍](./development.md)
+- [`magic-dash` 命令使用](./cli.md)

@@ -1,254 +1,202 @@
-# `magic-dash-pro`
+# `magic-dash-pro` 模板介绍
 
-多页面+用户登录应用模板。
+`magic-dash-pro` 是 `magic-dash` 中能力最完整的管理系统模板。它在 [`magic-dash`](./magic-dash.md) 基础多页面结构之上增加登录鉴权、角色权限、用户管理、部门管理、登录日志、数据库模型、登录密码加密传输等后台系统常用能力。
 
-## 1 创建方式
+## 适用场景
+
+优先选择 `magic-dash-pro` 的典型情况：
+
+- 需要用户登录和退出。
+- 需要基于角色控制页面访问权限。
+- 需要内置用户管理、部门管理、登录日志。
+- 需要用数据库保存用户、部门、日志或业务数据。
+- 需要一个可继续扩展为内部管理系统的 `Dash` 项目骨架。
+- 需要在 [`Flask`](https://github.com/pallets/flask) 与 [`FastAPI`](https://github.com/fastapi/fastapi) 后端之间选择。
+
+## 创建方式
 
 ```bash
 magic-dash create --name magic-dash-pro
 ```
 
-## 2 应用初始化启动
+执行后会继续选择后端类型：
 
-- 安装项目依赖库
+- `Flask`：默认选项。
+- `FastAPI`：使用方向键选择后回车。
+
+也可以通过环境变量在自动化场景中指定后端：
 
 ```bash
+MAGIC_DASH_PRO_BACKEND=flask magic-dash create --name magic-dash-pro
+MAGIC_DASH_PRO_BACKEND=fastapi magic-dash create --name magic-dash-pro
+```
+
+在 `PowerShell` 中可写作：
+
+```powershell
+$env:MAGIC_DASH_PRO_BACKEND = "fastapi"
+magic-dash create --name magic-dash-pro
+```
+
+## 启动方式
+
+```bash
+cd magic-dash-pro
 pip install -r requirements.txt
-```
-
-- 用户信息数据库初始化
-
-```bash
 python -m models.init_db
-```
-
-- 启动应用
-
-```bash
 python app.py
 ```
 
-- 访问应用
+默认访问地址：
 
-应用默认地址：http://127.0.0.1:8050
-
-- 自带管理员账号信息
-
+```text
+http://127.0.0.1:8050
 ```
+
+默认管理员账号：
+
+```text
 用户名：admin
 密码：admin123
 ```
 
-## 3 项目目录结构
+## 后端模板
 
-```bash
-magic-dash-pro
- ┣ assets # 静态资源目录
- ┃ ┣ css # 样式文件目录
- ┃ ┣ imgs # 图片文件目录
- ┃ ┣ js # 浏览器回调函数目录
- ┃ ┗ favicon.ico # 网页图标
- ┣ callbacks # 回调函数模块
- ┣ components # 自定义组件模块
- ┣ configs # 配置参数模块
- ┣ models # 数据库模型模块
- ┣ utils # 工具函数模块
- ┣ views # 页面模块
- ┣ magic_dash_pro.db # 数据库文件（初始化后自动生成）
- ┣ server.py # 应用初始化模块
- ┣ app.py # 应用主文件
- ┗ requirements.txt # 项目依赖信息
+`magic-dash-pro` 是面向用户的顶层模板名。生成时根据后端选择复制不同底层模板：
+
+| 后端选择 | 实际底层模板 | 说明 | 专项文档 |
+| --- | --- | --- | --- |
+| `Flask` | `magic-dash-pro` | 默认后端，基于 [`flask-login`](https://github.com/maxcountryman/flask-login) 和 [`flask-principal`](https://github.com/mattupstate/flask-principal) | [查看](./magic-dash-pro-flask.md) |
+| `FastAPI` | `magic-dash-pro-fastapi` | 隐藏模板，基于 `Dash` 的 `backend="fastapi"` 和 [`fastapi-login`](https://github.com/MushroomMaula/fastapi_login) | [查看](./magic-dash-pro-fastapi.md) |
+
+`magic-dash-pro-fastapi` 不会出现在 `magic-dash list` 中，也不能通过 `magic-dash create --name magic-dash-pro-fastapi` 直接创建。
+
+## 通用目录结构
+
+两个后端版本都保持相同的高层目录约定：
+
+```text
+magic-dash-pro/
+├─ assets/
+│  ├─ css/
+│  ├─ imgs/
+│  ├─ js/
+│  ├─ videos/
+│  └─ favicon.ico
+├─ callbacks/
+│  ├─ login_c.py
+│  └─ core_pages_c/
+├─ components/
+├─ configs/
+│  ├─ auth_config.py
+│  ├─ base_config.py
+│  ├─ database_config.py
+│  ├─ layout_config.py
+│  └─ router_config.py
+├─ models/
+├─ utils/
+├─ views/
+│  ├─ login.py
+│  ├─ core_pages/
+│  └─ status_pages/
+├─ server.py
+├─ app.py
+└─ requirements.txt
 ```
 
-## 4 主要功能配置说明
+## 通用功能
 
-### 4.1 基础配置
+### 登录鉴权
 
-#### 4.1.1 浏览器版本检测&限制
+模板提供登录页、登录回调、退出逻辑和登录态校验。登录成功后进入核心页面框架，未登录访问受保护页面时会被引导到登录页。
 
-> `BaseConfig.min_browser_versions`
+### 角色权限
 
-针对用户浏览器最低版本检测功能，配置所依赖的相关浏览器类型及最低版本信息，默认值：
+`configs/auth_config.py` 中定义角色和页面访问规则。默认角色：
 
-```python
-[
-    {"browser": "Chrome", "version": 88},
-    {"browser": "Firefox", "version": 78},
-    {"browser": "Edge", "version": 100},
-]
-```
+- `admin`：系统管理员。
+- `normal`：常规用户。
 
-> `BaseConfig.strict_browser_type_check`
+访问规则支持：
 
-针对用户浏览器最低版本检测功能，配置是否开启严格的浏览器类型限制，默认值：`False`，设置为`True`后，将依据`min_browser_versions`参数，直接拦截不在所列举范围内的浏览器类型。
+- `all`：允许访问全部有效页面。
+- `include`：仅允许访问指定页面。
+- `exclude`：禁止访问指定页面。
 
-#### 4.1.2 应用基础标题
+### 数据库模型
 
-> `BaseConfig.app_title`
+默认使用 [`peewee`](https://github.com/coleifer/peewee) 组织模型层。内置模型包括：
 
-设置应用基础标题，默认值：`Magic Dash`。
+- `Users`：用户信息。
+- `Departments`：部门信息。
+- `Logs`：登录日志。
 
-#### 4.1.3 应用版本号
+默认数据库为 `SQLite`，也可以通过 `DatabaseConfig` 切换到 `PostgreSQL` 或 `MySQL`。
 
-> `BaseConfig.app_version`
+### 数据库初始化
 
-设置应用版本号。
+`python -m models.init_db` 会完成以下工作：
 
-#### 4.1.4 应用密钥
+- 创建必要数据表。
+- 初始化管理员账号。
+- 生成登录密码加密传输需要的 `RSA` 公钥和私钥。
+- 在已有数据时通过交互提示确认是否重置。
 
-> `BaseConfig.app_secret_key`
+### 登录密码加密传输
 
-设置应用密钥，用于配合实现用户登录相关底层逻辑。
+模板使用浏览器端 `Web Crypto API` 结合后端 `RSA` 私钥解密流程，降低明文密码在请求体中直接传输的风险。相关密钥路径由 `BaseConfig.rsa_public_key_path` 和 `BaseConfig.rsa_private_key_path` 控制。
 
-#### 4.1.5 重复登录检测
+### 登录日志
 
-> `BaseConfig.enable_duplicate_login_check`
+模板内置登录日志页面，对应：
 
-设置是否开启重复登录检测功能，默认值：`False`。
+- `models/logs.py`
+- `views/core_pages/login_logs.py`
+- `callbacks/core_pages_c/login_logs_c.py`
 
-> `BaseConfig.duplicate_login_check_interval`
+### 用户与部门管理
 
-设置重复登录检测间隔时间，单位：秒，默认值：`10`。
+系统管理相关页面和组件集中在：
 
-> `BaseConfig.session_token_cookie_name`
+- `components/user_manage.py`
+- `components/department_manage.py`
+- `components/personal_info.py`
 
-登录会话token对应的cookies项名称，默认值：`session_token`。
+### 安全与体验配置
 
-#### 4.1.6 全屏水印
+`BaseConfig` 还提供：
 
-> `BaseConfig.enable_fullscreen_watermark`
+- 应用密钥和会话 `cookie` 名称。
+- 重复登录检测。
+- 全屏水印。
+- 登录页滑块验证开关。
+- 浏览器最低版本限制。
+- 版本更新日志弹窗。
 
-设置是否开启全屏额外水印功能，默认值：`False`。
+## 后端选择建议
 
-> `BaseConfig.fullscreen_watermark_generator`
+| 选择 | 推荐情况 |
+| --- | --- |
+| `Flask` | 需要兼容传统 `Dash` 部署方式、已有 [`Flask`](https://github.com/pallets/flask) 生态经验、希望使用 [`flask-login`](https://github.com/maxcountryman/flask-login) 的会话模式 |
+| `FastAPI` | 希望使用 `ASGI` 后端、希望与 [`FastAPI`](https://github.com/fastapi/fastapi) 服务集成、希望使用 `cookie JWT` 风格的登录态 |
 
-接受`lambda`函数或常规函数方法，用于动态处理实际水印内容输出，默认值：
+两个后端版本的页面、配置和大部分回调组织方式保持一致。`FastAPI` 版本为了兼容现有同步 `Dash` 回调，提供了当前用户和请求对象的轻量代理。
 
-```python
-# 其中current_user对应flask-login中的当前用户对象
-lambda current_user: current_user.user_name
-```
+## 生产环境注意事项
 
-### 4.2 布局配置
+上线前建议至少检查以下项目：
 
-#### 4.2.1 核心页面侧边栏宽度
+- 替换 `BaseConfig.app_secret_key`。
+- 妥善保存 `RSA` 私钥文件。
+- 修改同域多应用部署时可能冲突的 `app_session_cookie_name` 和 `session_token_cookie_name`。
+- 确认数据库类型和连接信息。
+- 固定依赖版本。
+- 关闭调试模式。
+- 根据反向代理和域名策略配置 `cookie`、安全头和静态资源缓存。
 
-> `LayoutConfig.core_side_width`
+## 进一步阅读
 
-设置核心页面侧边栏像素宽度，默认值：`350`。
-
-#### 4.2.2 登录页面左侧内容
-
-> `LayoutConfig.login_left_side_content_type`
-
-设置登录页面左侧内容类型，默认值：`image`，可选项有`image`（图片内容）、`video`（视频内容）。
-
-#### 4.2.3 核心页面呈现类型
-
-> `LayoutConfig.core_layout_type`
-
-设置核心页面呈现类型，默认值：`single`，可选项有`single`（单页面形式）、`tabs`（多标签页形式）。
-
-#### 4.2.4 页面搜索框展示
-
-> `LayoutConfig.show_core_page_search`
-
-设置页首中的页面搜索框是否展示，默认值：`True`。
-
-### 4.3 路由配置
-
-#### 4.3.1 首页路径别名
-
-> `RouterConfig.index_pathname`
-
-设置首页路径别名，默认值：`/index`。
-
-#### 4.3.2 核心页面侧边菜单结构
-
-> `RouterConfig.core_side_menu`
-
-核心页面侧边菜单结构。
-
-#### 4.3.3 有效页面路径&标题映射
-
-> `RouterConfig.valid_pathnames`
-
-配置有效页面路径&标题映射参数，定义*通配页面规则*时建议配合`RouterConfig.wildcard_patterns`参数使用。
-
-#### 4.3.4 独立渲染页面路径
-
-> `RouterConfig.independent_core_pathnames`
-
-设置核心页面中需要进行独立渲染的路径列表。
-
-#### 4.3.5 公开页面路径列表
-
-设置无需登录状态校验的公开页面路径列表，默认值：
-
-```python
-[
-    "/login",
-    "/logout",
-    "/403-demo",
-    "/404-demo",
-    "/500-demo",
-]
-```
-
-#### 4.3.6 侧边子菜单随访问自动展开
-
-> `RouterConfig.side_menu_open_keys`
-
-针对侧边菜单结构中隶属于子菜单的菜单项，配置对应需展开的上层菜单逐级`key`值列表。
-
-#### 4.3.7 通配页面模式字典
-
-> `RouterConfig.wildcard_patterns`
-
-基于正则表达式，配置应用中涉及到的通配页面模式字典。
-
-### 4.4 用户鉴权配置
-
-#### 4.4.1 角色权限类别
-
-> `AuthConfig.roles`
-
-定义系统中涉及的角色权限类别。
-
-#### 4.4.2 常规用户角色
-
-> `AuthConfig.normal_role`
-
-定义常规用户角色对应`AuthConfig.roles`中的键名。
-
-#### 4.4.3 管理员角色
-
-> `AuthConfig.admin_role`
-
-定义管理员角色对应`AuthConfig.roles`中的键名。
-
-#### 4.4.4 不同角色页面可访问性规则
-
-> `AuthConfig.pathname_access_rules`
-
-为不同角色定义对应系统中不同页面的可访问性规则。
-
-### 4.5 数据库配置
-
-#### 4.5.1 数据库类型
-
-> `DatabaseConfig.database_type`
-
-应用基础数据库类型，可选项有`'sqlite'`、`'postgresql'`、`'mysql'`，默认值：`'sqlite'`。
-
-#### 4.5.2 PostgreSQL数据库配置
-
-> `DatabaseConfig.postgresql_config`
-
-当数据库类型为`'postgresql'`时，配置**PostgreSQL**数据库连接参数。
-
-#### 4.5.3 MySQL数据库配置
-
-> `DatabaseConfig.mysql_config`
-
-当数据库类型为`'mysql'`时，配置**MySQL**数据库连接参数。
+- [`magic-dash-pro` Flask 后端模板](./magic-dash-pro-flask.md)
+- [`magic-dash-pro` FastAPI 后端模板](./magic-dash-pro-fastapi.md)
+- [配置参数说明](./configuration.md)
+- [二次开发介绍](./development.md)
