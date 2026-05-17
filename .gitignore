@@ -1,5 +1,6 @@
 __pycache__/
 dist/
+*.egg-info/
 **/*.db
 .vscode/
 *.pem

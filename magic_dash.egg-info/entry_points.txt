@@ -1,2 +1,0 @@
-[console_scripts]
-magic-dash = magic_dash:magic_dash
