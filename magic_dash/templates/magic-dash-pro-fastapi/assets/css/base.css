@@ -1,0 +1,42 @@
+/* 常规基础样式  */
+
+/* 自定义应用初始化加载动画效果 */
+._dash-loading {
+    color: transparent;
+    position: fixed;
+    width: calc(95px / 1.2);
+    height: calc(87px / 1.2);
+    top: 50vh;
+    left: 50vw;
+    transform: translate(-50%, -50%);
+    background-image: url('/assets/imgs/init_loading.gif');
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+}
+
+._dash-loading::after {
+    content: '';
+}
+
+/* 滚动条美化 */
+/* chrome, edge */
+*::-webkit-scrollbar-thumb {
+    background-color: #bfbfbf;
+    outline: none;
+    border-radius: 6px;
+}
+
+*::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+/* firefox */
+* {
+    scrollbar-width: thin;
+}
+
+/* 全局辅助性文字样式 */
+.global-help-text {
+    color: #5d7189;
+}

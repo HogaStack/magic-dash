@@ -1,0 +1,38 @@
+/* 核心页面样式 */
+
+/* 侧边菜单栏相关样式自定义 */
+
+#core-side-menu .ant-menu-item-selected {
+    background-color: #f4f6f9 !important;
+    color: #006aff !important;
+    font-size: 15px;
+    overflow: visible;
+}
+
+#core-side-menu .ant-menu-item {
+    font-size: 15px;
+}
+
+/* 为已选中菜单项，基于伪元素，添加前缀竖向填充线 */
+#core-side-menu .ant-menu-item-selected::before {
+    content: "";
+    position: absolute;
+    left: -5px;
+    top: 0;
+    width: 3px;
+    height: 100%;
+    background-color: #006aff;
+}
+
+
+#core-side-menu .ant-menu-item-icon>span {
+    font-size: 15px !important;
+}
+
+#core-side-menu .ant-menu-submenu {
+    font-size: 15px;
+}
+
+#core-side-menu .ant-menu-inline {
+    background: none !important;
+}

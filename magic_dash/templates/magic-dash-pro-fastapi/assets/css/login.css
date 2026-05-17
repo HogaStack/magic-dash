@@ -1,0 +1,16 @@
+.login-left-side {
+    position: relative;
+    background-size: cover;
+    background-position: center center;
+    background-repeat: repeat;
+    background-image: url("/assets/imgs/login/left-side-bg.svg");
+    border-top-right-radius: 12px;
+    border-bottom-right-radius: 12px;
+    user-select: none;
+}
+
+.login-right-side {
+    background-color: #ffffff;
+    background-image: radial-gradient(rgba(0, 106, 255, 0.4) 1px, #ffffff 1px);
+    background-size: 25px 25px;
+}
