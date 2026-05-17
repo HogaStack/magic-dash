@@ -28,6 +28,11 @@ BUILTIN_TEMPLATES = {
     },
 }
 
+PRO_BACKEND_TEMPLATES = {
+    "flask": "magic-dash-pro",
+    "fastapi": "magic-dash-pro-fastapi",
+}
+
 
 @click.group(name="magic-dash")
 @click.version_option(version=__version__, message="%(version)s")
@@ -131,9 +136,30 @@ def _create(name, path):
         "\n[yellow bold]请配置项目参数（直接回车使用默认值）：[/yellow bold]\n"
     )
 
+    source_template_name = name
+    project_default_name = name
+
+    if name == "magic-dash-pro":
+        backend_name = click.prompt(
+            "后端类型",
+            default="Flask",
+            type=click.Choice(["Flask", "FastAPI"], case_sensitive=False),
+            show_default=True,
+        )
+        normalized_backend_name = backend_name.lower()
+        source_template_name = PRO_BACKEND_TEMPLATES[normalized_backend_name]
+
+        if normalized_backend_name == "fastapi":
+            project_default_name = source_template_name
+
+        console.print(f"[bold]后端类型：[/bold] [cyan]{backend_name}[/cyan]")
+
     # 从命令行交互式输入获取项目名称
     project_name = click.prompt(
-        "项目名称", default=name, type=click.STRING, show_default=True
+        "项目名称",
+        default=project_default_name,
+        type=click.STRING,
+        show_default=True,
     )
 
     # 显示生成信息
@@ -155,14 +181,20 @@ def _create(name, path):
         src=os.path.join(
             os.path.dirname(os.path.abspath(__file__)),
             "templates",
-            name,
+            source_template_name,
         ),
-        dst=os.path.join(path, name),
+        dst=os.path.join(path, source_template_name),
     )
 
     # 替换版本号 (仅 magic-dash 系列模板)
-    if name in ("magic-dash", "magic-dash-pro"):
-        base_config_path = os.path.join(path, name, "configs", "base_config.py")
+    if source_template_name in (
+        "magic-dash",
+        "magic-dash-pro",
+        "magic-dash-pro-fastapi",
+    ):
+        base_config_path = os.path.join(
+            path, source_template_name, "configs", "base_config.py"
+        )
         if os.path.exists(base_config_path):
             with open(base_config_path, "r", encoding="utf-8") as f:
                 content = f.read()
@@ -176,7 +208,7 @@ def _create(name, path):
 
     # 重命名项目
     os.rename(
-        src=os.path.join(path, name),
+        src=os.path.join(path, source_template_name),
         dst=os.path.join(path, project_name),
     )
 
