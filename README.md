@@ -2,27 +2,20 @@
   <img src="./imgs/logo.svg" height="100" alt="magic-dash logo" />
 </p>
 
-# magic-dash
+<h1 align="center">magic-dash</h1>
 
-`magic-dash` 是一个面向 [`Dash`](https://github.com/plotly/dash) 应用开发的命令行脚手架工具，用于快速生成标准化、可直接运行、便于二次开发的 `Python` 数据应用工程模板。
+<p align="center">
+  <a href="./setup.py"><img src="https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue" alt="Python" /></a>
+  <a href="./LICENSE"><img src="https://shields.io/badge/license-MIT-informational" alt="License" /></a>
+  <a href="https://pypi.org/project/magic-dash/"><img src="https://img.shields.io/pypi/v/magic-dash.svg?color=dark-green" alt="PyPI" /></a>
+  <a href="https://github.com/astral-sh/ruff"><img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json" alt="Ruff" /></a>
+</p>
 
-它适合在启动一个新的 `Dash` 项目时使用：你可以用它生成单页面工具、多页面后台应用，或带登录、权限、用户管理、部门管理、数据库模型和登录日志的管理系统模板。生成后的项目是普通 `Python` 工程，可以继续按业务需求自由改造。
+<p align="center">
+  面向 <a href="https://github.com/plotly/dash">Dash</a> 应用开发的命令行脚手架，快速生成可运行、可扩展的 Python 数据应用模板。
+</p>
 
-[![Python](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)](./setup.py)
-[![License](https://shields.io/badge/license-MIT-informational)](./LICENSE)
-[![PyPI](https://img.shields.io/pypi/v/magic-dash.svg?color=dark-green)](https://pypi.org/project/magic-dash/)
-[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-
-## 项目定位
-
-`magic-dash` 的核心目标不是提供一个固定业务系统，而是提供一组可复制、可运行、可扩展的 `Dash` 工程起点。它把常见的应用基础能力预先组织好，包括：
-
-- `Dash` 应用入口与服务实例初始化。
-- 多页面路由、侧边菜单、状态页、独立页面和通配页面。
-- 静态资源、页面组件、回调函数和配置文件的目录约定。
-- 基于 [`feffery-antd-components`](https://github.com/CNFeffery/feffery-antd-components)、[`feffery-utils-components`](https://github.com/CNFeffery/feffery-utils-components)、[`feffery-dash-utils`](https://github.com/CNFeffery/feffery-dash-utils) 的常用交互组件和运行时检查。
-- 可选的登录鉴权、角色权限、数据库模型、用户管理、部门管理、登录日志和登录密码加密传输。
-- `magic-dash-pro` 模板下可选的 [`Flask`](https://github.com/pallets/flask) 后端和 [`FastAPI`](https://github.com/fastapi/fastapi) 后端实现。
+`magic-dash` 内置单页面工具、多页面应用和带登录鉴权的管理系统模板，覆盖路由、菜单、配置、回调组织、状态页、数据库模型、用户与权限管理等常见工程起点。
 
 ## 快速开始
 
