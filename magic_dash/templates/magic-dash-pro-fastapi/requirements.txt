@@ -9,3 +9,5 @@ user_agents
 Werkzeug
 yarl
 cryptography
+questionary
+rich

@@ -10,3 +10,5 @@ flask-compress
 flask-principal
 yarl
 cryptography
+questionary
+rich
