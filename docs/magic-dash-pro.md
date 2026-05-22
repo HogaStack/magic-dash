@@ -24,20 +24,6 @@ magic-dash create --name magic-dash-pro
 - `Flask`：默认选项。
 - `FastAPI`：使用方向键选择后回车。
 
-也可以通过环境变量在自动化场景中指定后端：
-
-```bash
-MAGIC_DASH_PRO_BACKEND=flask magic-dash create --name magic-dash-pro
-MAGIC_DASH_PRO_BACKEND=fastapi magic-dash create --name magic-dash-pro
-```
-
-在 `PowerShell` 中可写作：
-
-```powershell
-$env:MAGIC_DASH_PRO_BACKEND = "fastapi"
-magic-dash create --name magic-dash-pro
-```
-
 ## 启动方式
 
 ```bash

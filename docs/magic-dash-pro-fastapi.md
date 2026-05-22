@@ -10,19 +10,6 @@ magic-dash create --name magic-dash-pro
 
 在后端选择菜单中选择 `FastAPI`。
 
-自动化创建：
-
-```bash
-MAGIC_DASH_PRO_BACKEND=fastapi magic-dash create --name magic-dash-pro
-```
-
-`PowerShell`：
-
-```powershell
-$env:MAGIC_DASH_PRO_BACKEND = "fastapi"
-magic-dash create --name magic-dash-pro
-```
-
 不能直接执行：
 
 ```bash

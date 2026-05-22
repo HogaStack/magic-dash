@@ -140,36 +140,34 @@ def _create(name, path):
     project_default_name = name
 
     if name == "magic-dash-pro":
-        normalized_backend_name = os.environ.get("MAGIC_DASH_PRO_BACKEND", "").lower()
-        if normalized_backend_name not in PRO_BACKEND_TEMPLATES:
-            backend_choices = [
-                questionary.Choice(
-                    title=[
-                        ("class:highlighted", "Flask"),
-                        ("class:text", " - 默认后端，基于flask-login"),
-                    ],
-                    value="flask",
-                ),
-                questionary.Choice(
-                    title=[
-                        ("class:highlighted", "FastAPI"),
-                        ("class:text", " - 基于fastapi-login"),
-                    ],
-                    value="fastapi",
-                ),
-            ]
+        backend_choices = [
+            questionary.Choice(
+                title=[
+                    ("class:highlighted", "Flask"),
+                    ("class:text", " - 默认后端，基于flask-login"),
+                ],
+                value="flask",
+            ),
+            questionary.Choice(
+                title=[
+                    ("class:highlighted", "FastAPI"),
+                    ("class:text", " - 基于fastapi-login"),
+                ],
+                value="fastapi",
+            ),
+        ]
 
-            normalized_backend_name = questionary.select(
-                "请选择magic-dash-pro模板后端类型：",
-                choices=backend_choices,
-                default="flask",
-                style=custom_style,
-                instruction="(使用方向键选择，回车确认，Esc 取消)",
-            ).ask()
+        normalized_backend_name = questionary.select(
+            "请选择magic-dash-pro模板后端类型：",
+            choices=backend_choices,
+            default="flask",
+            style=custom_style,
+            instruction="(使用方向键选择，回车确认，Esc 取消)",
+        ).ask()
 
-            if normalized_backend_name is None:
-                console.print("\n[yellow bold]已取消项目生成[/yellow bold]\n")
-                return
+        if normalized_backend_name is None:
+            console.print("\n[yellow bold]已取消项目生成[/yellow bold]\n")
+            return
 
         source_template_name = PRO_BACKEND_TEMPLATES[normalized_backend_name]
 

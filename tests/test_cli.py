@@ -1,6 +1,25 @@
 import os
 import subprocess
 import pytest
+from click.testing import CliRunner
+
+import magic_dash as magic_dash_module
+
+
+class StubPrompt:
+    def __init__(self, value):
+        self.value = value
+
+    def ask(self):
+        return self.value
+
+
+def select_backend(monkeypatch, backend):
+    monkeypatch.setattr(
+        magic_dash_module.questionary,
+        "select",
+        lambda *args, **kwargs: StubPrompt(backend),
+    )
 
 
 def run_command(cmd, input_text=None, env=None):
@@ -85,18 +104,18 @@ def test_create_with_name(tmp_path, template_name):
         assert os.path.exists(os.path.join(project_path, file)), f"{file} 不存在"
 
 
-def test_create_magic_dash_pro_fastapi_backend(tmp_path):
+def test_create_magic_dash_pro_fastapi_backend(tmp_path, monkeypatch):
     """测试 magic-dash-pro 模板的 FastAPI 后端变体生成"""
+    select_backend(monkeypatch, "fastapi")
     project_path = tmp_path / "magic-dash-pro"
 
-    input_text = "\n"
-    returncode, stdout, stderr = run_command(
-        f"magic-dash create --name magic-dash-pro --path {tmp_path}",
-        input_text=input_text,
-        env={"MAGIC_DASH_PRO_BACKEND": "fastapi"},
+    result = CliRunner().invoke(
+        magic_dash_module.magic_dash,
+        ["create", "--name", "magic-dash-pro", "--path", str(tmp_path)],
+        input="\n",
     )
 
-    assert returncode == 0, f"命令执行失败: {stderr}"
+    assert result.exit_code == 0, f"命令执行失败: {result.output}"
     assert os.path.exists(project_path), f"项目目录未创建: {project_path}"
 
     server_path = os.path.join(project_path, "server.py")
@@ -113,18 +132,18 @@ def test_create_magic_dash_pro_fastapi_backend(tmp_path):
     assert "fastapi-login" in requirements_content
 
 
-def test_create_magic_dash_pro_default_flask_backend(tmp_path):
+def test_create_magic_dash_pro_default_flask_backend(tmp_path, monkeypatch):
     """测试 magic-dash-pro 模板默认使用 Flask 后端"""
+    select_backend(monkeypatch, "flask")
     project_path = tmp_path / "magic-dash-pro"
 
-    input_text = "\n"
-    returncode, stdout, stderr = run_command(
-        f"magic-dash create --name magic-dash-pro --path {tmp_path}",
-        input_text=input_text,
-        env={"MAGIC_DASH_PRO_BACKEND": "flask"},
+    result = CliRunner().invoke(
+        magic_dash_module.magic_dash,
+        ["create", "--name", "magic-dash-pro", "--path", str(tmp_path)],
+        input="\n",
     )
 
-    assert returncode == 0, f"命令执行失败: {stderr}"
+    assert result.exit_code == 0, f"命令执行失败: {result.output}"
     assert os.path.exists(project_path), f"项目目录未创建: {project_path}"
 
     with open(os.path.join(project_path, "requirements.txt"), encoding="utf-8") as f:

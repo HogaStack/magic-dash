@@ -10,12 +10,6 @@ magic-dash create --name magic-dash-pro
 
 在后端选择菜单中直接回车即可使用默认 `Flask` 后端。
 
-自动化创建：
-
-```bash
-MAGIC_DASH_PRO_BACKEND=flask magic-dash create --name magic-dash-pro
-```
-
 ## 依赖
 
 核心依赖包括：

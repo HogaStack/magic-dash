@@ -95,28 +95,7 @@ magic-dash create --name magic-dash --path ./workspace
 magic-dash create --name magic-dash-pro
 ```
 
-自动化方式：
-
-```bash
-MAGIC_DASH_PRO_BACKEND=flask magic-dash create --name magic-dash-pro
-MAGIC_DASH_PRO_BACKEND=fastapi magic-dash create --name magic-dash-pro
-```
-
-`PowerShell` 示例：
-
-```powershell
-$env:MAGIC_DASH_PRO_BACKEND = "fastapi"
-magic-dash create --name magic-dash-pro
-```
-
-环境变量值仅支持：
-
-```text
-flask
-fastapi
-```
-
-如果环境变量不存在或值不合法，命令会回退到交互式选择。
+后端类型仅通过交互式菜单选择。
 
 ## 生成后的提示
 
