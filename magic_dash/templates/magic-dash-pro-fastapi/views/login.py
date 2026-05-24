@@ -127,7 +127,7 @@ def render():
                             [
                                 html.Img(
                                     src="/assets/imgs/magic-dash-logo.svg",
-                                    height=72,
+                                    height=96,
                                 ),
                                 fac.AntdText(
                                     BaseConfig.app_title,
