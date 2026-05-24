@@ -102,7 +102,7 @@ def render(current_pathname: str = None):
                                         [
                                             # logo
                                             html.Img(
-                                                src="/assets/imgs/logo.svg",
+                                                src="/assets/imgs/magic-dash-logo.svg",
                                                 height=32,
                                                 style=style(display="block"),
                                             ),

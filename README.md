@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./imgs/logo.svg" height="150" alt="magic-dash logo" />
+  <img src="./imgs/magic-dash-logo.svg" height="150" alt="magic-dash logo" />
 </p>
 
 <h1 align="center">magic-dash</h1>

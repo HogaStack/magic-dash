@@ -126,7 +126,7 @@ def render():
                         fac.AntdSpace(
                             [
                                 html.Img(
-                                    src="/assets/imgs/logo.svg",
+                                    src="/assets/imgs/magic-dash-logo.svg",
                                     height=72,
                                 ),
                                 fac.AntdText(
