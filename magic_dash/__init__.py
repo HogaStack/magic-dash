@@ -239,7 +239,7 @@ def _create(name, path):
 
     # 如果是magic-dash-pro模板，需要初始化数据库
     if name == "magic-dash-pro":
-        success_msg += "\n  [dim]-[/dim] [cyan]python -m models.init_db[/cyan]"
+        success_msg += "\n  [dim]-[/dim] [cyan]python -m magic_init[/cyan]"
 
     success_msg += "\n  [dim]-[/dim] [cyan]python app.py[/cyan]"
 

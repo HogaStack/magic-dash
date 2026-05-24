@@ -29,7 +29,7 @@ magic-dash create --name magic-dash-pro
 ```bash
 cd magic-dash-pro
 pip install -r requirements.txt
-python -m models.init_db
+python -m magic_init
 python app.py
 ```
 
@@ -121,7 +121,7 @@ magic-dash-pro/
 
 ### 数据库初始化
 
-`python -m models.init_db` 会完成以下工作：
+`python -m magic_init` 会完成以下工作：
 
 - 创建必要数据表。
 - 初始化管理员账号。

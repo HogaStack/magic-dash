@@ -183,14 +183,14 @@ database_type = "mysql"
 
 ```bash
 pip install psycopg2-binary
-python -m models.init_db
+python -m magic_init
 ```
 
 或：
 
 ```bash
 pip install pymysql
-python -m models.init_db
+python -m magic_init
 ```
 
 ### 修改登录页

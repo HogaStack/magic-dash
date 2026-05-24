@@ -105,7 +105,7 @@ server = app.server
 启动前执行：
 
 ```bash
-python -m models.init_db
+python -m magic_init
 ```
 
 该命令会：

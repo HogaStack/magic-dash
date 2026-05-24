@@ -148,7 +148,7 @@ pip install pymysql
 修改数据库配置后，重新执行：
 
 ```bash
-python -m models.init_db
+python -m magic_init
 ```
 
 ## 配置修改建议

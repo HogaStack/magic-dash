@@ -104,7 +104,7 @@ server = app.server
 启动前执行：
 
 ```bash
-python -m models.init_db
+python -m magic_init
 ```
 
 该命令与 `Flask` 后端版本保持一致，会创建表、初始化管理员账号并生成 `RSA` 密钥。

@@ -110,7 +110,7 @@ python app.py
 如果模板为 `magic-dash-pro`，会额外提示：
 
 ```bash
-python -m models.init_db
+python -m magic_init
 ```
 
 ## 错误处理

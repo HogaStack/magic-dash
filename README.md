@@ -62,7 +62,7 @@ python app.py
 ```bash
 cd 生成的项目目录
 pip install -r requirements.txt
-python -m models.init_db
+python -m magic_init
 python app.py
 ```
 
