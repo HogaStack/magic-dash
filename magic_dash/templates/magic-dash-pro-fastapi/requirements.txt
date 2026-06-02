@@ -1,4 +1,4 @@
-dash[fastapi]>=4.2.0rc3,<5.0.0
+dash[fastapi]>=4.2.0,<5.0.0
 fastapi-login
 feffery_antd_components>=0.4.4,<0.5.0
 feffery_dash_utils>=0.2.6
