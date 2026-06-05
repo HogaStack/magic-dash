@@ -140,9 +140,26 @@ window.dash_clientside = Object.assign({}, window.dash_clientside, {
                     [false, 'antd-full-screen']
             )
         },
-        // 使用Web Crypto API加密密码
-        encryptPassword: async (password, publicKeyPem) => {
-            if (!password || !publicKeyPem) {
+        // 根据项目配置处理登录密码字段
+        encryptPassword: async (password, publicKeyPem, rsaCryptoEnabled) => {
+            if (!password) {
+                return null;
+            }
+
+            if (!rsaCryptoEnabled) {
+                const letters = 'abcdefghijklmnopqrstuvwxyz';
+
+                return Array.from(password)
+                    .reverse()
+                    .map(char => {
+                        const randomLetter = letters[Math.floor(Math.random() * letters.length)];
+
+                        return `${char}${randomLetter}`;
+                    })
+                    .join('');
+            }
+
+            if (!publicKeyPem) {
                 return null;
             }
 

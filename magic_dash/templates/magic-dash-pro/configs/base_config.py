@@ -57,6 +57,10 @@ class BaseConfig:
         current_user.user_name
     )
 
+    # 是否启用登录密码RSA加密传输功能
+    # 开启后需配合HTTPS环境使用，否则浏览器端Web Crypto API在非安全上下文中可能不可用
+    enable_login_rsa_crypto: bool = False
+
     # 用于登录密码加密传输的RSA公钥文件路径
     rsa_public_key_path: str = "magic_dash_pro_public_key.pem"
 

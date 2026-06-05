@@ -14,7 +14,7 @@ from server import app, User
 from models.users import Users
 from configs import BaseConfig
 from models.logs import LoginLogs
-from utils.crypto_utils import decrypt_password
+from utils.crypto_utils import restore_login_password
 
 
 app.clientside_callback(
@@ -23,6 +23,7 @@ app.clientside_callback(
     Output("login-password-crypto", "data"),
     Input("login-password", "value"),
     State("login-rsa-pubkey", "data"),
+    State("login-rsa-crypto-enabled", "data"),
 )
 
 
@@ -52,8 +53,10 @@ def handle_login(
 
     time.sleep(0.25)
 
-    # 解密前端传输的加密密码
-    password = decrypt_password(password_crypto)
+    # 还原前端传输的密码字段值
+    password = restore_login_password(
+        password_crypto, BaseConfig.enable_login_rsa_crypto
+    )
 
     # 构造兼容原有判断逻辑的表单values
     values = {

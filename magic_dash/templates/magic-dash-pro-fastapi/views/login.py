@@ -139,6 +139,11 @@ def render():
                                         dcc.Store(
                                             id="login-rsa-pubkey", data=rsa_public_key
                                         ),
+                                        # 存储当前项目是否启用登录密码RSA加密
+                                        dcc.Store(
+                                            id="login-rsa-crypto-enabled",
+                                            data=BaseConfig.enable_login_rsa_crypto,
+                                        ),
                                         # 存储加密后的密码
                                         dcc.Store(id="login-password-crypto"),
                                         fac.AntdFormItem(

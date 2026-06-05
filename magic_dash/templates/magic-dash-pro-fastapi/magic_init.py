@@ -104,59 +104,64 @@ def main():
     admin_created = False
 
     # 0. RSA密钥对生成
-    # 检查是否已存在RSA密钥对
-    if check_rsa_keys_exist():
-        # 已存在密钥，询问是否覆盖
-        console.print("\n[dim]请确认以下安全密钥操作：[/dim]\n")
-        confirm_override = questionary.confirm(
-            f"检测到已存在RSA密钥对文件（{BaseConfig.rsa_private_key_path} 和 {BaseConfig.rsa_public_key_path}），是否重新生成并覆盖？",
-            default=False,
-            style=custom_style,
-        ).ask()
+    if BaseConfig.enable_login_rsa_crypto:
+        # 检查是否已存在RSA密钥对
+        if check_rsa_keys_exist():
+            # 已存在密钥，询问是否覆盖
+            console.print("\n[dim]请确认以下安全密钥操作：[/dim]\n")
+            confirm_override = questionary.confirm(
+                f"检测到已存在RSA密钥对文件（{BaseConfig.rsa_private_key_path} 和 {BaseConfig.rsa_public_key_path}），是否重新生成并覆盖？",
+                default=False,
+                style=custom_style,
+            ).ask()
 
-        if confirm_override:
+            if confirm_override:
+                try:
+                    generate_rsa_key_pair()
+                    executed_operations.append(
+                        (
+                            "RSA密钥对",
+                            f"已重新生成并覆盖\n    私钥: {BaseConfig.rsa_private_key_path}\n    公钥: {BaseConfig.rsa_public_key_path}",
+                            "yellow",
+                            "green",
+                        )
+                    )
+                except Exception as e:
+                    executed_operations.append(
+                        ("RSA密钥对", f"重新生成失败: {str(e)}", "yellow", "red")
+                    )
+            else:
+                executed_operations.append(
+                    (
+                        "RSA密钥对",
+                        f"保留现有密钥文件\n    私钥: {BaseConfig.rsa_private_key_path}\n    公钥: {BaseConfig.rsa_public_key_path}",
+                        "dim",
+                        "dim",
+                    )
+                )
+        else:
+            # 不存在密钥，直接生成
+            console.print(
+                "\n[dim]检测到当前项目根目录中不存在RSA密钥对文件，正在自动生成...[/dim]"
+            )
             try:
                 generate_rsa_key_pair()
                 executed_operations.append(
                     (
                         "RSA密钥对",
-                        f"已重新生成并覆盖\n    私钥: {BaseConfig.rsa_private_key_path}\n    公钥: {BaseConfig.rsa_public_key_path}",
+                        f"已自动生成\n    私钥: {BaseConfig.rsa_private_key_path}\n    公钥: {BaseConfig.rsa_public_key_path}",
                         "yellow",
                         "green",
                     )
                 )
             except Exception as e:
                 executed_operations.append(
-                    ("RSA密钥对", f"重新生成失败: {str(e)}", "yellow", "red")
+                    ("RSA密钥对", f"生成失败: {str(e)}", "yellow", "red")
                 )
-        else:
-            executed_operations.append(
-                (
-                    "RSA密钥对",
-                    f"保留现有密钥文件\n    私钥: {BaseConfig.rsa_private_key_path}\n    公钥: {BaseConfig.rsa_public_key_path}",
-                    "dim",
-                    "dim",
-                )
-            )
     else:
-        # 不存在密钥，直接生成
-        console.print(
-            "\n[dim]检测到当前项目根目录中不存在RSA密钥对文件，正在自动生成...[/dim]"
+        executed_operations.append(
+            ("RSA密钥对", "已跳过（未开启登录密码RSA加密）", "dim", "dim")
         )
-        try:
-            generate_rsa_key_pair()
-            executed_operations.append(
-                (
-                    "RSA密钥对",
-                    f"已自动生成\n    私钥: {BaseConfig.rsa_private_key_path}\n    公钥: {BaseConfig.rsa_public_key_path}",
-                    "yellow",
-                    "green",
-                )
-            )
-        except Exception as e:
-            executed_operations.append(
-                ("RSA密钥对", f"生成失败: {str(e)}", "yellow", "red")
-            )
 
     # 1&2. 预先检查部门和用户表状态
     departments_exists = check_table_exists(Departments)
