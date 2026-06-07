@@ -33,6 +33,218 @@ PRO_BACKEND_TEMPLATES = {
     "fastapi": "magic-dash-pro-fastapi",
 }
 
+BACKEND_SELECT_TEMPLATES = {
+    "magic-dash",
+    "magic-dash-pro",
+    "simple-tool",
+}
+
+LIGHTWEIGHT_BACKEND_TEMPLATES = {
+    "magic-dash",
+    "simple-tool",
+}
+
+FASTAPI_REQUIREMENTS = [
+    "fastapi",
+    "uvicorn",
+]
+
+
+def _normalize_backend_name(backend):
+    if backend is None:
+        return None
+
+    return backend.lower()
+
+
+def _select_backend(template_name, custom_style, backend=None):
+    backend = _normalize_backend_name(backend)
+    if backend:
+        return backend
+
+    backend_choices = [
+        questionary.Choice(
+            title=[
+                ("class:highlighted", "Flask"),
+                ("class:text", " - 默认后端"),
+            ],
+            value="flask",
+        ),
+        questionary.Choice(
+            title=[
+                ("class:highlighted", "FastAPI"),
+                ("class:text", " - 适用于FastAPI后端基底"),
+            ],
+            value="fastapi",
+        ),
+    ]
+
+    normalized_backend_name = questionary.select(
+        f"请选择{template_name}模板后端类型：",
+        choices=backend_choices,
+        default="flask",
+        style=custom_style,
+        instruction="(使用方向键选择，回车确认，Esc 取消)",
+    ).ask()
+
+    if normalized_backend_name is None:
+        console.print("\n[yellow bold]已取消项目生成[/yellow bold]\n")
+        return None
+
+    return normalized_backend_name
+
+
+def _ensure_fastapi_requirements(project_path):
+    requirements_path = os.path.join(project_path, "requirements.txt")
+    if not os.path.exists(requirements_path):
+        return
+
+    with open(requirements_path, "r", encoding="utf-8") as f:
+        requirements = f.read().splitlines()
+
+    updated_requirements = []
+    has_dash = False
+    existing_packages = set()
+
+    for line in requirements:
+        stripped_line = line.strip()
+        package_name = re.split(r"[<>=!~\[]", stripped_line, maxsplit=1)[0].lower()
+        if package_name:
+            existing_packages.add(package_name)
+
+        if re.match(r"^dash([<>=!~]|\[)", stripped_line):
+            updated_requirements.append(
+                re.sub(r"^dash(?:\[[^\]]+\])?", "dash[fastapi]", line)
+            )
+            has_dash = True
+            continue
+
+        if package_name == "flask-compress":
+            continue
+
+        updated_requirements.append(line)
+
+    if not has_dash:
+        updated_requirements.insert(0, "dash[fastapi]>=4.2.0,<5.0.0")
+
+    for requirement in FASTAPI_REQUIREMENTS:
+        if requirement.lower() not in existing_packages:
+            updated_requirements.append(requirement)
+
+    with open(requirements_path, "w", encoding="utf-8", newline="\n") as f:
+        f.write("\n".join(updated_requirements).rstrip() + "\n")
+
+
+def _enable_fastapi_dash_backend(project_path):
+    for root, _, files in os.walk(project_path):
+        for filename in files:
+            if not filename.endswith(".py"):
+                continue
+
+            file_path = os.path.join(root, filename)
+            with open(file_path, "r", encoding="utf-8") as f:
+                content = f.read()
+
+            if "dash.Dash(" not in content or 'backend="fastapi"' in content:
+                continue
+
+            updated_content = re.sub(
+                r"(dash\.Dash\(\s*__name__,)",
+                r'\1\n    backend="fastapi",',
+                content,
+                count=1,
+            )
+
+            if updated_content == content:
+                continue
+
+            with open(file_path, "w", encoding="utf-8", newline="\n") as f:
+                f.write(updated_content)
+
+
+def _convert_magic_dash_server_to_fastapi(project_path):
+    server_path = os.path.join(project_path, "server.py")
+    if not os.path.exists(server_path):
+        return
+
+    with open(server_path, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    if "from flask import request" not in content:
+        return
+
+    content = content.replace(
+        "from flask import request",
+        "from fastapi import Request\nfrom fastapi.responses import HTMLResponse",
+    )
+
+    middleware = '''def _browser_block_message(request: Request):
+    """检查浏览器版本是否符合最低要求"""
+
+    user_agent = parse(request.headers.get("user-agent", ""))
+
+    if user_agent.browser.version == ():
+        return None
+
+    if user_agent.browser.family == "IE":
+        return (
+            "<div style='font-size: 16px; color: red; position: fixed; top: 40%; left: 50%; transform: translateX(-50%);'>"
+            "请不要使用IE浏览器，或开启了IE内核兼容模式的其他浏览器访问本应用</div>"
+        )
+
+    for rule in BaseConfig.min_browser_versions:
+        if (
+            user_agent.browser.family == rule["browser"]
+            and user_agent.browser.version[0] < rule["version"]
+        ):
+            return (
+                "<div style='font-size: 16px; color: red; position: fixed; top: 40%; left: 50%; transform: translateX(-50%);'>"
+                "您的{}浏览器版本低于本应用最低支持版本（{}），请升级浏览器后再访问</div>"
+            ).format(rule["browser"], rule["version"])
+
+    if BaseConfig.strict_browser_type_check:
+        if user_agent.browser.family not in [
+            rule["browser"] for rule in BaseConfig.min_browser_versions
+        ]:
+            return (
+                "<div style='font-size: 16px; color: red; position: fixed; top: 40%; left: 50%; transform: translateX(-50%);'>"
+                "当前浏览器类型不在支持的范围内，支持的浏览器类型有：{}</div>"
+            ).format(
+                "、".join(
+                    [rule["browser"] for rule in BaseConfig.min_browser_versions]
+                )
+            )
+
+    return None
+
+
+@app.server.middleware("http")
+async def check_browser(request: Request, call_next):
+    browser_block_message = _browser_block_message(request)
+    if browser_block_message:
+        return HTMLResponse(browser_block_message)
+
+    return await call_next(request)
+'''
+
+    content = re.sub(
+        r"\n\n@app\.server\.before_request\ndef check_browser\(\):.*\Z",
+        "\n\n" + middleware,
+        content,
+        flags=re.S,
+    )
+
+    with open(server_path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(content)
+
+
+def _apply_lightweight_fastapi_backend(project_path, template_name):
+    _ensure_fastapi_requirements(project_path)
+    _enable_fastapi_dash_backend(project_path)
+
+    if template_name == "magic-dash":
+        _convert_magic_dash_server_to_fastapi(project_path)
+
 
 @click.group(name="magic-dash")
 @click.version_option(version=__version__, message="%(version)s")
@@ -67,7 +279,12 @@ def _list():
 @click.command(name="create")
 @click.option("--name", type=click.STRING, help="Dash应用项目模板名称")
 @click.option("--path", type=click.STRING, default=".", help="项目生成目标路径")
-def _create(name, path):
+@click.option(
+    "--backend",
+    type=click.Choice(["flask", "fastapi"], case_sensitive=False),
+    help="Dash应用项目后端类型",
+)
+def _create(name, path, backend):
     """生成指定Dash应用项目模板到指定目录"""
 
     custom_style = questionary.Style(
@@ -139,37 +356,15 @@ def _create(name, path):
     source_template_name = name
     project_default_name = name
 
-    if name == "magic-dash-pro":
-        backend_choices = [
-            questionary.Choice(
-                title=[
-                    ("class:highlighted", "Flask"),
-                    ("class:text", " - 默认后端，基于flask-login"),
-                ],
-                value="flask",
-            ),
-            questionary.Choice(
-                title=[
-                    ("class:highlighted", "FastAPI"),
-                    ("class:text", " - 基于fastapi-login"),
-                ],
-                value="fastapi",
-            ),
-        ]
-
-        normalized_backend_name = questionary.select(
-            "请选择magic-dash-pro模板后端类型：",
-            choices=backend_choices,
-            default="flask",
-            style=custom_style,
-            instruction="(使用方向键选择，回车确认，Esc 取消)",
-        ).ask()
+    normalized_backend_name = "flask"
+    if name in BACKEND_SELECT_TEMPLATES:
+        normalized_backend_name = _select_backend(name, custom_style, backend)
 
         if normalized_backend_name is None:
-            console.print("\n[yellow bold]已取消项目生成[/yellow bold]\n")
             return
 
-        source_template_name = PRO_BACKEND_TEMPLATES[normalized_backend_name]
+        if name == "magic-dash-pro":
+            source_template_name = PRO_BACKEND_TEMPLATES[normalized_backend_name]
 
         backend_name = "FastAPI" if normalized_backend_name == "fastapi" else "Flask"
         console.print(f"[bold]后端类型：[/bold] [cyan]{backend_name}[/cyan]")
@@ -209,6 +404,12 @@ def _create(name, path):
         ),
         dst=project_path,
     )
+
+    if (
+        name in LIGHTWEIGHT_BACKEND_TEMPLATES
+        and normalized_backend_name == "fastapi"
+    ):
+        _apply_lightweight_fastapi_backend(project_path, name)
 
     # 替换版本号 (仅 magic-dash 系列模板)
     if source_template_name in (
