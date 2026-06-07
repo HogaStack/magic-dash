@@ -29,7 +29,7 @@ setup(
     ],
     url="https://github.com/CNFeffery/magic-dash",
     python_requires=">=3.8, <3.15",
-    install_requires=["click", "rich", "questionary"],
+    install_requires=["click", "rich", "questionary", "dash>=4.2.0,<5.0.0"],
     entry_points={
         "console_scripts": [
             "magic-dash = magic_dash:magic_dash",
