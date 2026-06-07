@@ -11,28 +11,47 @@
   <a href="https://github.com/astral-sh/ruff"><img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json" alt="Ruff" /></a>
 </p>
 
-`magic-dash` 是面向 Dash 应用开发的命令行脚手架，用于快速生成可运行、可扩展的 Python 数据应用项目。它内置单页面工具、多页面应用和带登录鉴权的管理系统模板，覆盖路由、菜单、配置、回调组织、状态页、数据库模型、用户与权限管理等常见工程起点。
+`magic-dash`是面向[Dash](https://github.com/plotly/dash)应用开发的命令行脚手架，用于快速生成可运行、可扩展的`Python`数据应用项目。它内置单页面工具、多页面持续扩展应用和支持复杂用户与部门关系的管理系统模板，覆盖路由、菜单、配置、回调组织、状态页、数据库模型、用户登录、管理与鉴权等常见工程起点。
 
-## 快速体验
+## 1 快速开始
+
+### 安装&更新
 
 ```bash
 pip install magic-dash -U
+```
+
+查看当前安装版本：
+
+```bash
+magic-dash --version
+```
+
+### 查看内置模板项目列表
+
+```bash
 magic-dash list
+```
+
+当前可直接创建的内置模板包括：
+
+- `simple-tool`
+- `magic-dash`
+- `magic-dash-pro`
+
+### 以magic-dash模板为例创建项目
+
+```bash
 magic-dash create --name magic-dash
 ```
 
-生成项目后：
+命令会继续提示输入项目名称。直接回车时，默认生成名为`magic-dash`的项目目录。
+
+### 进入已创建项目，安装依赖并启动应用
 
 ```bash
-cd 生成的项目目录
+cd magic-dash
 pip install -r requirements.txt
-python app.py
-```
-
-`magic-dash-pro` 模板需要先初始化数据库和登录密钥：
-
-```bash
-python -m magic_init
 python app.py
 ```
 
@@ -42,89 +61,39 @@ python app.py
 http://127.0.0.1:8050
 ```
 
-## 文档结构
+更多命令细节见[`CLI`命令说明](./docs/cli.md)。
 
-完整入口见 [文档首页](./docs/index.md)。推荐按下面的层次阅读：
+## 2 内置模板列表
 
-### 1. 认识与上手
+| 模板 | 适用场景 | 子文档入口 |
+| --- | --- | --- |
+| `simple-tool` | 单页面数据工具、计算器、内部小工具原型 | [项目创建](./docs/simple-tool/项目创建.md) / [二次开发指南](./docs/simple-tool/二次开发指南.md) |
+| `magic-dash` | 适用于多页面、持续扩展的[Dash](https://github.com/plotly/dash)应用，内置侧边菜单、路由、状态页和页面组织规范 | [项目创建](./docs/magic-dash/项目创建.md) / [配置参数](./docs/magic-dash/配置参数.md) / [二次开发指南](./docs/magic-dash/二次开发指南.md) |
+| `magic-dash-pro` | 适用于多页面、持续扩展的管理型[Dash](https://github.com/plotly/dash)应用，支持复杂用户与部门关系、用户登录、管理和鉴权能力 | [项目创建](./docs/magic-dash-pro/项目创建.md) / [配置参数](./docs/magic-dash-pro/配置参数.md) / [二次开发指南](./docs/magic-dash-pro/二次开发指南.md) |
 
-- [什么是 magic-dash](./docs/what-is-magic-dash.md)
-- [快速开始](./docs/quick-start.md)
-  - 安装
-  - 更新
-  - 查看版本
-  - 查看内置模板
-  - 创建内置模板项目
-- [`magic-dash` 命令使用](./docs/cli.md)
-  - 安装与版本
-  - 查看帮助
-  - 查看模板列表
-  - 创建项目
-  - 错误处理
+## 3 反馈和社区
 
-### 2. 内置模板
+- `GitHub`仓库：[CNFeffery/magic-dash](https://github.com/CNFeffery/magic-dash)
+- 问题反馈：[`GitHub Issues`](https://github.com/CNFeffery/magic-dash/issues)
+- `PyPI`发布页：[magic-dash](https://pypi.org/project/magic-dash/)
+- 作者邮箱：<fefferypzy@gmail.com>
 
-- [内置各模板项目介绍](./docs/templates.md)
-- [`simple-tool` 模板](./docs/templates.md#simple-tool-模板)
-  - 适用场景
-  - 创建与启动
-  - 目录结构
-  - 内置能力
-  - 二次开发介绍
-    - 单文件改造
-    - 拆分 `components/`、`callbacks/`、`utils/`
-    - 迁移到多页面模板
-  - 详细文档：[`simple-tool` 模板介绍](./docs/simple-tool.md)
-- [`magic-dash` 模板](./docs/templates.md#magic-dash-模板)
-  - 项目结构
-  - 配置参数
-    - `BaseConfig`
-    - `LayoutConfig`
-    - `RouterConfig`
-  - 二次开发介绍
-    - 新增普通核心页面
-    - 新增独立页面
-    - 新增通配页面
-    - 新增页面回调
-  - 详细文档：[`magic-dash` 模板介绍](./docs/magic-dash.md)
-- [`magic-dash-pro` 模板](./docs/templates.md#magic-dash-pro-模板)
-  - 后端模板
-    - [`magic-dash-pro` Flask 后端模板](./docs/magic-dash-pro-flask.md)
-    - [`magic-dash-pro` FastAPI 后端模板](./docs/magic-dash-pro-fastapi.md)
-  - 项目结构
-  - 配置参数
-    - `BaseConfig`
-    - `LayoutConfig`
-    - `RouterConfig`
-    - `AuthConfig`
-    - `DatabaseConfig`
-  - 二次开发介绍
-    - 新增受保护普通页面
-    - 新增公开页面
-    - 新增独立页面
-    - 新增通配页面
-    - 新增角色与数据库模型
-  - 详细文档：[`magic-dash-pro` 模板介绍](./docs/magic-dash-pro.md)
+<p align="center">
+  <img src="./imgs/公众号.png" alt="公众号二维码" />
+  <br />
+  <strong>微信公众号</strong>
+  <br />
+  <sub>关注项目动态与实用教程</sub>
+</p>
 
-### 3. 配置与二次开发
-
-- [配置参数说明](./docs/configuration.md)
-  - `BaseConfig`
-  - `LayoutConfig`
-  - `RouterConfig`
-  - `AuthConfig`
-  - `DatabaseConfig`
-- [二次开发介绍](./docs/development.md)
-  - 开发 `magic-dash` 工具本身
-  - 基于 `simple-tool` 二次开发
-  - 基于 `magic-dash` 二次开发
-  - 基于 `magic-dash-pro` 二次开发
-
-### 4. 反馈与社区
-
-- [问题反馈](./docs/feedback.md)
-- [知识社区](./docs/community.md)
+<p align="center">
+  <img src="./imgs/知识星球.jpg" alt="知识星球二维码" />
+  <br />
+  <strong>知识星球</strong>
+  <br />
+  <sub>加入社区交流与答疑</sub>
+</p>
 
 ## 许可证
 
-本项目基于 [MIT License](./LICENSE) 开源。
+本项目基于[`MIT License`](./LICENSE)开源。
