@@ -277,9 +277,10 @@ def _list():
 
 
 @click.command(name="create")
-@click.option("--name", type=click.STRING, help="Dash应用项目模板名称")
-@click.option("--path", type=click.STRING, default=".", help="项目生成目标路径")
+@click.option("-n", "--name", type=click.STRING, help="Dash应用项目模板名称")
+@click.option("-p", "--path", type=click.STRING, default=".", help="项目生成目标路径")
 @click.option(
+    "-b",
     "--backend",
     type=click.Choice(["flask", "fastapi"], case_sensitive=False),
     help="Dash应用项目后端类型",

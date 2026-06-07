@@ -10,6 +10,8 @@
 magic-dash create --name magic-dash-pro --backend fastapi
 ```
 
+等价的简写形式为`magic-dash create -n magic-dash-pro -b fastapi`。
+
 生成一个新的`FastAPI`后端目标项目。随后将原`Flask`后端项目中的业务内容迁移到新项目中。
 
 优先迁移这些目录：

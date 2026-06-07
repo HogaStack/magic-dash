@@ -45,7 +45,13 @@ magic-dash list
 magic-dash create --name magic-dash --backend fastapi
 ```
 
-也可以省略`--backend`，通过交互式菜单选择后端类型。随后命令会继续提示输入项目名称，直接回车时，默认生成名为`magic-dash`的项目目录。
+等价的简写形式为：
+
+```bash
+magic-dash create -n magic-dash -b fastapi
+```
+
+也可以省略`--backend`或`-b`，通过交互式菜单选择后端类型。随后命令会继续提示输入项目名称，直接回车时，默认生成名为`magic-dash`的项目目录。
 
 ### 进入已创建项目，安装依赖并启动应用
 

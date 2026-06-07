@@ -139,6 +139,9 @@ def test_create_help_includes_backend_option():
     result = CliRunner().invoke(magic_dash_module.magic_dash, ["create", "--help"])
 
     assert result.exit_code == 0, f"命令执行失败: {result.output}"
+    assert "-n, --name" in result.output
+    assert "-p, --path" in result.output
+    assert "-b, --backend" in result.output
     assert "--backend" in result.output
     assert "flask" in result.output
     assert "fastapi" in result.output
@@ -178,6 +181,28 @@ def test_create_with_full_template_backend_options(tmp_path, template_name, back
 
     assert result.exit_code == 0, f"命令执行失败: {result.output}"
     assert_backend_created(project_path, template_name, backend)
+
+
+def test_create_with_short_template_backend_options(tmp_path):
+    """测试 create 命令支持短参数形式"""
+    project_path = tmp_path / "simple-tool"
+
+    result = CliRunner().invoke(
+        magic_dash_module.magic_dash,
+        [
+            "create",
+            "-n",
+            "simple-tool",
+            "-p",
+            str(tmp_path),
+            "-b",
+            "fastapi",
+        ],
+        input="\n",
+    )
+
+    assert result.exit_code == 0, f"命令执行失败: {result.output}"
+    assert_backend_created(project_path, "simple-tool", "fastapi")
 
 
 @pytest.mark.parametrize("template_name", ["simple-tool", "magic-dash", "magic-dash-pro"])

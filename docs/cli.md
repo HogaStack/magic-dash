@@ -57,11 +57,13 @@ magic-dash create [OPTIONS]
 
 可用选项：
 
-| 选项 | 默认值 | 说明 |
-| --- | --- | --- |
-| `--name` | 无 | [Dash](https://github.com/plotly/dash)应用项目模板名称；可选`simple-tool`、`magic-dash`、`magic-dash-pro` |
-| `--path` | `"."` | 项目生成目标父目录 |
-| `--backend` | 交互选择 | 后端类型；可选`flask`、`fastapi` |
+| 选项 | 简写 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `--name` | `-n` | 无 | [Dash](https://github.com/plotly/dash)应用项目模板名称；可选`simple-tool`、`magic-dash`、`magic-dash-pro` |
+| `--path` | `-p` | `"."` | 项目生成目标父目录 |
+| `--backend` | `-b` | 交互选择 | 后端类型；可选`flask`、`fastapi` |
+
+长参数和简写参数完全等价，例如`--name`可写作`-n`，`--path`可写作`-p`，`--backend`可写作`-b`。
 
 ## 交互式创建
 
@@ -89,6 +91,14 @@ magic-dash create --name magic-dash --backend fastapi --path ./workspace
 magic-dash create --name magic-dash-pro --backend fastapi --path ./workspace
 ```
 
+也可以使用简写参数：
+
+```bash
+magic-dash create -n simple-tool -b flask -p ./workspace
+magic-dash create -n magic-dash -b fastapi -p ./workspace
+magic-dash create -n magic-dash-pro -b fastapi -p ./workspace
+```
+
 如果项目名称为`demo-app`，最终生成路径为：
 
 ```text
@@ -110,6 +120,14 @@ magic-dash create --name magic-dash-pro --backend fastapi --path ./workspace
 magic-dash create --name simple-tool --backend fastapi
 magic-dash create --name magic-dash --backend fastapi
 magic-dash create --name magic-dash-pro --backend fastapi
+```
+
+等价的简写形式：
+
+```bash
+magic-dash create -n simple-tool -b fastapi
+magic-dash create -n magic-dash -b fastapi
+magic-dash create -n magic-dash-pro -b fastapi
 ```
 
 `simple-tool`和`magic-dash`选择`FastAPI`后端时，会在复制原始模板后轻量改写生成结果：`requirements.txt`会切换到`dash[fastapi]`并补充`fastapi`、`uvicorn`依赖，`dash.Dash()`实例会添加`backend="fastapi"`。`magic-dash`中的浏览器版本检查也会从`Flask before_request`改写为`FastAPI middleware`。
