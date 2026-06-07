@@ -7,10 +7,10 @@
 推荐使用“新建`FastAPI`后端项目，再迁移业务代码”的方式，而不是在原项目中直接逐文件硬改：
 
 ```bash
-magic-dash create --name magic-dash-pro
+magic-dash create --name magic-dash-pro --backend fastapi
 ```
 
-在后端类型选择中选择`FastAPI`，生成一个新的目标项目。随后将原`Flask`后端项目中的业务内容迁移到新项目中。
+生成一个新的`FastAPI`后端目标项目。随后将原`Flask`后端项目中的业务内容迁移到新项目中。
 
 优先迁移这些目录：
 

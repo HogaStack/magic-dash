@@ -61,6 +61,7 @@ magic-dash create [OPTIONS]
 | --- | --- | --- |
 | `--name` | 无 | [Dash](https://github.com/plotly/dash)应用项目模板名称；可选`simple-tool`、`magic-dash`、`magic-dash-pro` |
 | `--path` | `"."` | 项目生成目标父目录 |
+| `--backend` | 交互选择 | 后端类型；可选`flask`、`fastapi` |
 
 ## 交互式创建
 
@@ -70,7 +71,7 @@ magic-dash create [OPTIONS]
 magic-dash create
 ```
 
-选择模板后，命令会继续提示输入项目名称。如果目标父目录下已存在同名文件夹，会要求重新输入项目名称，避免覆盖已有项目。
+选择模板后，命令会继续提示选择后端类型并输入项目名称。如果目标父目录下已存在同名文件夹，会要求重新输入项目名称，避免覆盖已有项目。
 
 ## 指定模板创建
 
@@ -80,10 +81,12 @@ magic-dash create --name magic-dash
 magic-dash create --name magic-dash-pro
 ```
 
-指定生成父目录：
+指定生成父目录和后端类型：
 
 ```bash
-magic-dash create --name magic-dash --path ./workspace
+magic-dash create --name simple-tool --backend flask --path ./workspace
+magic-dash create --name magic-dash --backend fastapi --path ./workspace
+magic-dash create --name magic-dash-pro --backend fastapi --path ./workspace
 ```
 
 如果项目名称为`demo-app`，最终生成路径为：
@@ -92,22 +95,26 @@ magic-dash create --name magic-dash --path ./workspace
 ./workspace/demo-app
 ```
 
-## `magic-dash-pro`后端选择
+## 后端选择
 
-创建`magic-dash-pro`时，命令会提示选择后端类型：
+创建`simple-tool`、`magic-dash`或`magic-dash-pro`时，命令会提示选择后端类型：
 
 | 选项 | 说明 |
 | --- | --- |
-| `Flask` | 默认后端，基于`flask-login` |
-| `FastAPI` | 可选后端，基于`fastapi-login` |
+| `Flask` | 默认后端 |
+| `FastAPI` | 可选后端 |
 
 示例：
 
 ```bash
-magic-dash create --name magic-dash-pro
+magic-dash create --name simple-tool --backend fastapi
+magic-dash create --name magic-dash --backend fastapi
+magic-dash create --name magic-dash-pro --backend fastapi
 ```
 
-后端类型当前通过交互式菜单选择。
+`simple-tool`和`magic-dash`选择`FastAPI`后端时，会在复制原始模板后轻量改写生成结果：`requirements.txt`会切换到`dash[fastapi]`并补充`fastapi`、`uvicorn`依赖，`dash.Dash()`实例会添加`backend="fastapi"`。`magic-dash`中的浏览器版本检查也会从`Flask before_request`改写为`FastAPI middleware`。
+
+`magic-dash-pro`选择`FastAPI`后端时，仍使用内部维护的`magic-dash-pro-fastapi`模板变体，以适配登录、鉴权和权限管理等复杂差异。
 
 ## 生成后的启动提示
 
@@ -149,7 +156,7 @@ magic-dash create --name unknown-template
 magic-dash create --name magic-dash-pro-fastapi
 ```
 
-该命令无效。请使用`magic-dash create --name magic-dash-pro`，再在后端类型菜单中选择`FastAPI`。
+该命令无效。请使用`magic-dash create --name magic-dash-pro --backend fastapi`，或使用`magic-dash create --name magic-dash-pro`后在后端类型菜单中选择`FastAPI`。
 
 ### 项目文件夹已存在
 
@@ -157,4 +164,4 @@ magic-dash create --name magic-dash-pro-fastapi
 
 ### 取消交互
 
-在模板选择或`magic-dash-pro`后端选择过程中取消操作，命令会停止生成，不写入项目文件。
+在模板选择或后端选择过程中取消操作，命令会停止生成，不写入项目文件。
