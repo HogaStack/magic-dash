@@ -1,11 +1,17 @@
+.login-page {
+    --login-theme-color: #006aff;
+    --login-theme-color-light: #39d7ff;
+    --login-theme-color-soft: rgba(0, 106, 255, 0.22);
+    height: 100vh;
+    overflow: hidden;
+}
+
 .login-left-side {
     position: relative;
     background-size: cover;
     background-position: center center;
     background-repeat: repeat;
     background-image: url("/assets/imgs/login/left-side-bg.svg");
-    border-top-right-radius: 12px;
-    border-bottom-right-radius: 12px;
     user-select: none;
 }
 
@@ -13,4 +19,151 @@
     background-color: #ffffff;
     background-image: radial-gradient(rgba(0, 106, 255, 0.4) 1px, #ffffff 1px);
     background-size: 25px 25px;
+}
+
+.login-content-side {
+    min-height: 100vh;
+    overflow: hidden;
+}
+
+.login-content-side-content-left {
+    border-top-right-radius: 12px;
+    border-bottom-right-radius: 12px;
+}
+
+.login-content-side-form-left {
+    border-top-left-radius: 12px;
+    border-bottom-left-radius: 12px;
+}
+
+.login-content-video {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    pointer-events: none;
+}
+
+/* 渐变内容背景：当login_content_type为gradient时，三种登录布局共用同一背景层 */
+.login-gradient-content-bg {
+    position: absolute;
+    /* 预留少量溢出空间，避免位移与轻微旋转动画露出边缘 */
+    inset: -3%;
+    overflow: hidden;
+    background-color: #006aff;
+    background-image: url("/assets/imgs/login/gradient-bg.jpg");
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
+    pointer-events: none;
+    animation: login-gradient-bg-drift 14s ease-in-out infinite;
+    transform-origin: center center;
+    will-change: transform, filter;
+}
+
+/* 非居中布局的内容区宽度更窄，使用信息量更集中的侧栏专用渐变图 */
+.login-page-content-left .login-gradient-content-bg,
+.login-page-form-left .login-gradient-content-bg {
+    background-image: url("/assets/imgs/login/gradient-bg-side.png");
+}
+
+.login-form-panel {
+    position: relative;
+    z-index: 1;
+}
+
+.login-page-centered {
+    position: relative;
+    background-color: #eef6ff;
+}
+
+.login-page-centered .login-content-side {
+    position: absolute;
+    inset: 0;
+    min-height: 100vh;
+    border-radius: 0;
+}
+
+.login-centered-form-layer {
+    display: flex;
+    position: relative;
+    z-index: 2;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    padding: 24px;
+    transform: translateY(-4vh);
+}
+
+.login-form-center-centered {
+    position: relative;
+    width: min(420px, calc(100vw - 48px));
+    min-height: 520px;
+    padding: 42px 34px 36px;
+    border-radius: 24px;
+    background:
+        radial-gradient(ellipse at 50% 0, rgba(255, 255, 255, 0.86), transparent 42%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.74), rgba(232, 247, 255, 0.58)),
+        linear-gradient(135deg, rgba(255, 255, 255, 0.42), rgba(168, 216, 255, 0.3));
+    box-shadow:
+        0 30px 82px rgba(0, 43, 122, 0.2),
+        0 12px 30px rgba(0, 106, 255, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.92),
+        inset 0 -18px 48px rgba(0, 106, 255, 0.08);
+    backdrop-filter: blur(32px) saturate(1.45) contrast(0.98);
+    -webkit-backdrop-filter: blur(32px) saturate(1.45) contrast(0.98);
+}
+
+.login-form-center-centered .login-app-title {
+    color: #123057;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.74);
+}
+
+.login-form-center-centered .ant-form-item-label>label {
+    color: rgba(18, 48, 87, 0.84);
+}
+
+.login-form-center-centered .ant-input-affix-wrapper {
+    border-color: rgba(255, 255, 255, 0.72);
+    background: rgba(255, 255, 255, 0.86);
+    box-shadow:
+        0 8px 22px rgba(0, 60, 140, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.login-form-center-centered .ant-input {
+    background: transparent;
+}
+
+/* 闭环的轻微位移与转动，用整张背景层运动，避免拉伸图片本身 */
+@keyframes login-gradient-bg-drift {
+    0%,
+    100% {
+        filter: brightness(1) saturate(1);
+        transform: translate3d(-0.6%, -0.4%, 0) scale(1.035) rotate(-0.65deg);
+    }
+
+    50% {
+        filter: brightness(1.035) saturate(1.035);
+        transform: translate3d(0.6%, 0.45%, 0) scale(1.045) rotate(0.65deg);
+    }
+}
+
+@media (max-width: 768px) {
+
+    .login-page-content-left .login-content-side,
+    .login-page-form-left .login-content-side {
+        display: none;
+    }
+
+    .login-page-content-left .login-form-side,
+    .login-page-form-left .login-form-side {
+        flex: 0 0 100% !important;
+        max-width: 100% !important;
+    }
+
+    .login-form-center-centered {
+        min-height: auto;
+        padding: 34px 24px 30px;
+    }
 }
