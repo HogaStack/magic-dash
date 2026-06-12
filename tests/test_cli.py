@@ -39,6 +39,12 @@ def select_sequence(monkeypatch, *values):
     )
 
 
+def write_file(path, content):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(content)
+
+
 def run_command(cmd, input_text=None, env=None):
     """执行命令并返回结果"""
     encoding = "utf-8"
@@ -74,6 +80,19 @@ def run_command(cmd, input_text=None, env=None):
     return returncode, stdout, stderr
 
 
+def assert_pro_public_assets_created(project_path):
+    expected_assets = [
+        os.path.join("assets", "videos", "login-bg.mp4"),
+        os.path.join("assets", "imgs", "login", "gradient-bg.jpg"),
+        os.path.join("assets", "imgs", "login", "gradient-bg-side.png"),
+    ]
+
+    for asset_path in expected_assets:
+        assert os.path.exists(os.path.join(project_path, asset_path)), (
+            f"公共静态资源未生成: {asset_path}"
+        )
+
+
 def assert_backend_created(project_path, template_name, backend):
     dash_file = "app.py" if template_name == "simple-tool" else "server.py"
     dash_path = os.path.join(project_path, dash_file)
@@ -90,6 +109,9 @@ def assert_backend_created(project_path, template_name, backend):
     with open(requirements_path, encoding="utf-8") as f:
         requirements_content = f.read()
     requirements = requirements_content.splitlines()
+
+    if template_name == "magic-dash-pro":
+        assert_pro_public_assets_created(project_path)
 
     if backend == "fastapi":
         assert 'backend="fastapi"' in dash_content
@@ -147,6 +169,15 @@ def test_create_help_includes_backend_option():
     assert "fastapi" in result.output
 
 
+def test_help_includes_init_assets_command():
+    """测试帮助信息包含 init-assets 命令"""
+    result = CliRunner().invoke(magic_dash_module.magic_dash, ["--help"])
+
+    assert result.exit_code == 0, f"命令执行失败: {result.output}"
+    assert "init-assets" in result.output
+    assert "remove-assets" in result.output
+
+
 def test_list():
     """测试 list 命令列出所有内置模板"""
     returncode, stdout, stderr = run_command("magic-dash list")
@@ -159,7 +190,9 @@ def test_list():
     assert "magic-dash-pro-fastapi" not in stdout, "FastAPI变体不应在顶层模板列表中展示"
 
 
-@pytest.mark.parametrize("template_name", ["simple-tool", "magic-dash", "magic-dash-pro"])
+@pytest.mark.parametrize(
+    "template_name", ["simple-tool", "magic-dash", "magic-dash-pro"]
+)
 @pytest.mark.parametrize("backend", ["flask", "fastapi"])
 def test_create_with_full_template_backend_options(tmp_path, template_name, backend):
     """测试完整参数指定模板和后端类型创建项目"""
@@ -181,6 +214,12 @@ def test_create_with_full_template_backend_options(tmp_path, template_name, back
 
     assert result.exit_code == 0, f"命令执行失败: {result.output}"
     assert_backend_created(project_path, template_name, backend)
+
+    if template_name == "magic-dash-pro":
+        assert "正在复制公共静态资源" in result.output
+        assert "login-bg.mp4" in result.output
+        assert "gradient-bg.jpg" in result.output
+        assert "gradient-bg-side.png" in result.output
 
 
 def test_create_with_short_template_backend_options(tmp_path):
@@ -205,9 +244,13 @@ def test_create_with_short_template_backend_options(tmp_path):
     assert_backend_created(project_path, "simple-tool", "fastapi")
 
 
-@pytest.mark.parametrize("template_name", ["simple-tool", "magic-dash", "magic-dash-pro"])
+@pytest.mark.parametrize(
+    "template_name", ["simple-tool", "magic-dash", "magic-dash-pro"]
+)
 @pytest.mark.parametrize("backend", ["flask", "fastapi"])
-def test_create_interactive_template_and_backend(tmp_path, monkeypatch, template_name, backend):
+def test_create_interactive_template_and_backend(
+    tmp_path, monkeypatch, template_name, backend
+):
     """测试交互式选择模板和后端类型创建项目"""
     select_sequence(monkeypatch, template_name, backend)
     project_path = tmp_path / template_name
@@ -263,6 +306,7 @@ def test_create_magic_dash_pro_fastapi_backend(tmp_path, monkeypatch):
 
     assert 'backend="fastapi"' in server_content
     assert "fastapi-login" in requirements_content
+    assert_pro_public_assets_created(project_path)
 
 
 @pytest.mark.parametrize(
@@ -272,7 +316,9 @@ def test_create_magic_dash_pro_fastapi_backend(tmp_path, monkeypatch):
         ("magic-dash", "server.py"),
     ],
 )
-def test_create_lightweight_template_fastapi_backend(tmp_path, template_name, dash_file):
+def test_create_lightweight_template_fastapi_backend(
+    tmp_path, template_name, dash_file
+):
     """测试轻量模板可在生成后切换为 FastAPI 后端"""
     project_path = tmp_path / template_name
 
@@ -310,7 +356,7 @@ def test_create_lightweight_template_fastapi_backend(tmp_path, template_name, da
 
     if template_name == "magic-dash":
         assert "from flask import request" not in dash_content
-        assert '@app.server.before_request' not in dash_content
+        assert "@app.server.before_request" not in dash_content
         assert '@app.server.middleware("http")' in dash_content
 
 
@@ -333,6 +379,184 @@ def test_create_magic_dash_pro_default_flask_backend(tmp_path, monkeypatch):
 
     assert "Flask_Login" in requirements_content
     assert "fastapi-login" not in requirements_content
+
+
+def test_init_assets_restores_public_assets(tmp_path, monkeypatch):
+    """测试 init-assets 命令可从 public_assets 同步公共静态资源到模板目录"""
+    package_root = tmp_path
+    write_file(os.path.join(package_root, "public_assets", "sample.txt"), "asset")
+    os.makedirs(
+        os.path.join(package_root, "templates", "sample-template"), exist_ok=True
+    )
+
+    monkeypatch.setattr(magic_dash_module, "PACKAGE_ROOT", str(package_root))
+    monkeypatch.setattr(
+        magic_dash_module,
+        "PUBLIC_ASSETS_DIR",
+        os.path.join(package_root, "public_assets"),
+    )
+    monkeypatch.setattr(
+        magic_dash_module,
+        "PUBLIC_ASSET_TARGETS",
+        {"sample-template": {os.path.join("assets", "sample.txt"): "sample.txt"}},
+    )
+
+    result = CliRunner().invoke(magic_dash_module.magic_dash, ["init-assets"])
+
+    assert result.exit_code == 0, f"命令执行失败: {result.output}"
+    assert "正在同步内置模板公共静态资源" in result.output
+    target_path = os.path.join(
+        package_root, "templates", "sample-template", "assets", "sample.txt"
+    )
+    assert os.path.exists(target_path)
+    with open(target_path, encoding="utf-8") as f:
+        assert f.read() == "asset"
+
+
+def test_init_assets_confirms_before_overwriting_existing_assets(tmp_path, monkeypatch):
+    """测试 init-assets 遇到已有资源文件时只批量确认一次"""
+    package_root = tmp_path
+    source_path = os.path.join(package_root, "public_assets", "sample.txt")
+    target_path = os.path.join(
+        package_root, "templates", "sample-template", "assets", "sample.txt"
+    )
+    write_file(source_path, "new asset")
+    write_file(target_path, "old asset")
+
+    monkeypatch.setattr(magic_dash_module, "PACKAGE_ROOT", str(package_root))
+    monkeypatch.setattr(
+        magic_dash_module,
+        "PUBLIC_ASSETS_DIR",
+        os.path.join(package_root, "public_assets"),
+    )
+    monkeypatch.setattr(
+        magic_dash_module,
+        "PUBLIC_ASSET_TARGETS",
+        {"sample-template": {os.path.join("assets", "sample.txt"): "sample.txt"}},
+    )
+
+    skipped_result = CliRunner().invoke(
+        magic_dash_module.magic_dash,
+        ["init-assets"],
+        input="n\n",
+    )
+
+    assert skipped_result.exit_code == 0, f"命令执行失败: {skipped_result.output}"
+    assert "是否一次性覆盖" in skipped_result.output
+    with open(target_path, encoding="utf-8") as f:
+        assert f.read() == "old asset"
+
+    copied_result = CliRunner().invoke(
+        magic_dash_module.magic_dash,
+        ["init-assets"],
+        input="y\n",
+    )
+
+    assert copied_result.exit_code == 0, f"命令执行失败: {copied_result.output}"
+    with open(target_path, encoding="utf-8") as f:
+        assert f.read() == "new asset"
+
+
+def test_init_assets_force_overwrites_public_assets(tmp_path, monkeypatch):
+    """测试 init-assets --force 覆盖已有公共静态资源"""
+    package_root = tmp_path
+    source_path = os.path.join(package_root, "public_assets", "sample.txt")
+    target_path = os.path.join(
+        package_root, "templates", "sample-template", "assets", "sample.txt"
+    )
+    write_file(source_path, "new asset")
+    write_file(target_path, "old asset")
+
+    monkeypatch.setattr(magic_dash_module, "PACKAGE_ROOT", str(package_root))
+    monkeypatch.setattr(
+        magic_dash_module,
+        "PUBLIC_ASSETS_DIR",
+        os.path.join(package_root, "public_assets"),
+    )
+    monkeypatch.setattr(
+        magic_dash_module,
+        "PUBLIC_ASSET_TARGETS",
+        {"sample-template": {os.path.join("assets", "sample.txt"): "sample.txt"}},
+    )
+
+    result = CliRunner().invoke(
+        magic_dash_module.magic_dash, ["init-assets", "--force"]
+    )
+
+    assert result.exit_code == 0, f"命令执行失败: {result.output}"
+    assert "是否一次性覆盖" not in result.output
+    with open(target_path, encoding="utf-8") as f:
+        assert f.read() == "new asset"
+
+
+def test_remove_assets_confirms_before_removing_existing_assets(tmp_path, monkeypatch):
+    """测试 remove-assets 遇到已有资源文件时只批量确认一次"""
+    package_root = tmp_path
+    first_target_path = os.path.join(
+        package_root, "templates", "sample-template", "assets", "sample-a.txt"
+    )
+    second_target_path = os.path.join(
+        package_root, "templates", "sample-template", "assets", "sample-b.txt"
+    )
+    write_file(first_target_path, "asset a")
+    write_file(second_target_path, "asset b")
+
+    monkeypatch.setattr(magic_dash_module, "PACKAGE_ROOT", str(package_root))
+    monkeypatch.setattr(
+        magic_dash_module,
+        "PUBLIC_ASSET_TARGETS",
+        {
+            "sample-template": {
+                os.path.join("assets", "sample-a.txt"): "sample-a.txt",
+                os.path.join("assets", "sample-b.txt"): "sample-b.txt",
+            }
+        },
+    )
+
+    skipped_result = CliRunner().invoke(
+        magic_dash_module.magic_dash,
+        ["remove-assets"],
+        input="n\n",
+    )
+
+    assert skipped_result.exit_code == 0, f"命令执行失败: {skipped_result.output}"
+    assert "是否一次性移除" in skipped_result.output
+    assert os.path.exists(first_target_path)
+    assert os.path.exists(second_target_path)
+
+    removed_result = CliRunner().invoke(
+        magic_dash_module.magic_dash,
+        ["remove-assets"],
+        input="y\n",
+    )
+
+    assert removed_result.exit_code == 0, f"命令执行失败: {removed_result.output}"
+    assert not os.path.exists(first_target_path)
+    assert not os.path.exists(second_target_path)
+
+
+def test_remove_assets_force_removes_existing_assets(tmp_path, monkeypatch):
+    """测试 remove-assets --force 移除已有公共静态资源副本"""
+    package_root = tmp_path
+    target_path = os.path.join(
+        package_root, "templates", "sample-template", "assets", "sample.txt"
+    )
+    write_file(target_path, "asset")
+
+    monkeypatch.setattr(magic_dash_module, "PACKAGE_ROOT", str(package_root))
+    monkeypatch.setattr(
+        magic_dash_module,
+        "PUBLIC_ASSET_TARGETS",
+        {"sample-template": {os.path.join("assets", "sample.txt"): "sample.txt"}},
+    )
+
+    result = CliRunner().invoke(
+        magic_dash_module.magic_dash, ["remove-assets", "--force"]
+    )
+
+    assert result.exit_code == 0, f"命令执行失败: {result.output}"
+    assert "是否一次性移除" not in result.output
+    assert not os.path.exists(target_path)
 
 
 def test_create_invalid_name():

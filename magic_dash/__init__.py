@@ -49,6 +49,34 @@ FASTAPI_REQUIREMENTS = [
     "uvicorn",
 ]
 
+PACKAGE_ROOT = os.path.dirname(os.path.abspath(__file__))
+PUBLIC_ASSETS_DIR = os.path.join(PACKAGE_ROOT, "public_assets")
+
+PUBLIC_ASSET_TARGETS = {
+    "magic-dash-pro": {
+        os.path.join("assets", "videos", "login-bg.mp4"): os.path.join(
+            "videos", "login-bg.mp4"
+        ),
+        os.path.join("assets", "imgs", "login", "gradient-bg.jpg"): os.path.join(
+            "imgs", "login", "gradient-bg.jpg"
+        ),
+        os.path.join("assets", "imgs", "login", "gradient-bg-side.png"): os.path.join(
+            "imgs", "login", "gradient-bg-side.png"
+        ),
+    },
+    "magic-dash-pro-fastapi": {
+        os.path.join("assets", "videos", "login-bg.mp4"): os.path.join(
+            "videos", "login-bg.mp4"
+        ),
+        os.path.join("assets", "imgs", "login", "gradient-bg.jpg"): os.path.join(
+            "imgs", "login", "gradient-bg.jpg"
+        ),
+        os.path.join("assets", "imgs", "login", "gradient-bg-side.png"): os.path.join(
+            "imgs", "login", "gradient-bg-side.png"
+        ),
+    },
+}
+
 
 def _normalize_backend_name(backend):
     if backend is None:
@@ -92,6 +120,178 @@ def _select_backend(template_name, custom_style, backend=None):
         return None
 
     return normalized_backend_name
+
+
+def _copy_public_assets(template_name, target_root, overwrite=False):
+    results = []
+
+    for target_relative_path, source_relative_path in PUBLIC_ASSET_TARGETS.get(
+        template_name, {}
+    ).items():
+        source_path = os.path.join(PUBLIC_ASSETS_DIR, source_relative_path)
+        target_path = os.path.join(target_root, target_relative_path)
+
+        if not os.path.exists(source_path):
+            results.append((target_relative_path, "missing", source_path))
+            continue
+
+        if os.path.exists(target_path) and not overwrite:
+            results.append((target_relative_path, "skipped", target_path))
+            continue
+
+        os.makedirs(os.path.dirname(target_path), exist_ok=True)
+        shutil.copy2(source_path, target_path)
+        results.append((target_relative_path, "copied", target_path))
+
+    return results
+
+
+def _print_public_asset_results(results):
+    if not results:
+        return
+
+    table = Table(
+        show_header=True,
+        header_style="bold bright_blue",
+        border_style="blue",
+    )
+    table.add_column("资源路径", style="white")
+    table.add_column("状态", style="cyan", width=12)
+
+    for relative_path, status, _ in results:
+        if status == "copied":
+            status_text = "[green]已复制[/green]"
+        elif status == "skipped":
+            status_text = "[yellow]已跳过[/yellow]"
+        else:
+            status_text = "[red]源文件缺失[/red]"
+
+        table.add_row(relative_path, status_text)
+
+    console.print(table)
+
+
+def _get_existing_public_asset_targets():
+    existing_targets = []
+
+    for template_name, asset_targets in PUBLIC_ASSET_TARGETS.items():
+        template_root = os.path.join(PACKAGE_ROOT, "templates", template_name)
+        for target_relative_path in asset_targets:
+            target_path = os.path.join(template_root, target_relative_path)
+            if os.path.exists(target_path):
+                existing_targets.append(
+                    (template_name, target_relative_path, target_path)
+                )
+
+    return existing_targets
+
+
+def _init_public_assets(force=False):
+    console.print("\n[cyan]正在同步内置模板公共静态资源...[/cyan]")
+
+    overwrite = force
+    existing_targets = _get_existing_public_asset_targets()
+    if existing_targets and not force:
+        overwrite = click.confirm(
+            f"检测到 {len(existing_targets)} 个公共静态资源目标文件已存在，是否一次性覆盖？",
+            default=False,
+            show_default=True,
+        )
+
+    table = Table(
+        show_header=True,
+        header_style="bold bright_blue",
+        border_style="blue",
+    )
+    table.add_column("模板", style="bold green", width=24)
+    table.add_column("资源路径", style="white")
+    table.add_column("状态", style="cyan", width=12)
+
+    has_missing_source = False
+    copied_count = 0
+    skipped_count = 0
+
+    for template_name in PUBLIC_ASSET_TARGETS:
+        template_root = os.path.join(PACKAGE_ROOT, "templates", template_name)
+        results = _copy_public_assets(
+            template_name,
+            template_root,
+            overwrite=overwrite,
+        )
+
+        for relative_path, status, _ in results:
+            if status == "copied":
+                copied_count += 1
+                status_text = "[green]已复制[/green]"
+            elif status == "skipped":
+                skipped_count += 1
+                status_text = "[yellow]已跳过[/yellow]"
+            else:
+                has_missing_source = True
+                status_text = "[red]源文件缺失[/red]"
+
+            table.add_row(template_name, relative_path, status_text)
+
+    console.print(table)
+    console.print(
+        f"\n[bold]公共静态资源同步完成：[/bold][green]{copied_count}[/green] 个已复制，"
+        f"[yellow]{skipped_count}[/yellow] 个已跳过"
+    )
+
+    if has_missing_source:
+        raise click.ClickException("public_assets 中存在缺失的公共静态资源")
+
+
+def _remove_public_assets(force=False):
+    console.print("\n[cyan]正在移除内置模板公共静态资源副本...[/cyan]")
+
+    existing_targets = _get_existing_public_asset_targets()
+    should_remove = force
+
+    if existing_targets and not force:
+        should_remove = click.confirm(
+            f"检测到 {len(existing_targets)} 个模板公共静态资源文件，是否一次性移除？",
+            default=False,
+            show_default=True,
+        )
+
+    table = Table(
+        show_header=True,
+        header_style="bold bright_blue",
+        border_style="blue",
+    )
+    table.add_column("模板", style="bold green", width=24)
+    table.add_column("资源路径", style="white")
+    table.add_column("状态", style="cyan", width=12)
+
+    removed_count = 0
+    skipped_count = 0
+    missing_count = 0
+
+    for template_name, asset_targets in PUBLIC_ASSET_TARGETS.items():
+        template_root = os.path.join(PACKAGE_ROOT, "templates", template_name)
+        for target_relative_path in asset_targets:
+            target_path = os.path.join(template_root, target_relative_path)
+
+            if not os.path.exists(target_path):
+                missing_count += 1
+                status_text = "[dim]不存在[/dim]"
+            elif should_remove:
+                os.remove(target_path)
+                removed_count += 1
+                status_text = "[green]已移除[/green]"
+            else:
+                skipped_count += 1
+                status_text = "[yellow]已跳过[/yellow]"
+
+            table.add_row(template_name, target_relative_path, status_text)
+
+    console.print(table)
+    console.print(
+        f"\n[bold]公共静态资源副本移除完成：[/bold][green]{removed_count}[/green] 个已移除，"
+        f"[yellow]{skipped_count}[/yellow] 个已跳过，"
+        f"[dim]{missing_count}[/dim] 个不存在"
+    )
 
 
 def _ensure_fastapi_requirements(project_path):
@@ -399,17 +599,23 @@ def _create(name, path, backend):
     # 复制项目模板到指定目录
     shutil.copytree(
         src=os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
+            PACKAGE_ROOT,
             "templates",
             source_template_name,
         ),
         dst=project_path,
     )
 
-    if (
-        name in LIGHTWEIGHT_BACKEND_TEMPLATES
-        and normalized_backend_name == "fastapi"
-    ):
+    if source_template_name in PUBLIC_ASSET_TARGETS:
+        console.print("\n[cyan]正在复制公共静态资源...[/cyan]")
+        public_asset_results = _copy_public_assets(
+            source_template_name, project_path, overwrite=True
+        )
+        _print_public_asset_results(public_asset_results)
+        if any(status == "missing" for _, status, _ in public_asset_results):
+            raise click.ClickException("public_assets 中存在缺失的公共静态资源")
+
+    if name in LIGHTWEIGHT_BACKEND_TEMPLATES and normalized_backend_name == "fastapi":
         _apply_lightweight_fastapi_backend(project_path, name)
 
     # 替换版本号 (仅 magic-dash 系列模板)
@@ -455,9 +661,47 @@ def _create(name, path, backend):
     )
 
 
+@click.command(name="init-assets")
+@click.option("-f", "--force", is_flag=True, help="覆盖已存在的公共静态资源文件")
+def _init_assets(force):
+    """初始化内置模板所需的公共静态资源"""
+
+    console.print(
+        Panel(
+            "[bold]正在初始化内置模板公共静态资源[/bold]",
+            title="[bold cyan]magic-dash init-assets[/bold cyan]",
+            border_style="bright_blue",
+            padding=(1, 2),
+        )
+    )
+
+    _init_public_assets(force=force)
+    console.print("\n[bold green]公共静态资源初始化完成[/bold green]")
+
+
+@click.command(name="remove-assets")
+@click.option("-f", "--force", is_flag=True, help="移除已存在的公共静态资源文件")
+def _remove_assets(force):
+    """移除内置模板中的公共静态资源副本"""
+
+    console.print(
+        Panel(
+            "[bold]正在移除内置模板公共静态资源副本[/bold]",
+            title="[bold cyan]magic-dash remove-assets[/bold cyan]",
+            border_style="bright_blue",
+            padding=(1, 2),
+        )
+    )
+
+    _remove_public_assets(force=force)
+    console.print("\n[bold green]公共静态资源副本移除完成[/bold green]")
+
+
 # 令子命令生效
 magic_dash.add_command(_list)
 magic_dash.add_command(_create)
+magic_dash.add_command(_init_assets)
+magic_dash.add_command(_remove_assets)
 
 if __name__ == "__main__":
     magic_dash()
