@@ -4,3 +4,7 @@ graft magic_dash
 prune **/__pycache__
 exclude magic_dash/templates/magic-dash-pro/magic_dash_pro.db
 exclude magic_dash/templates/magic-dash-pro-fastapi/magic_dash_pro.db
+recursive-exclude magic_dash/templates/magic-dash-pro/assets/videos login-bg.mp4
+recursive-exclude magic_dash/templates/magic-dash-pro/assets/imgs/login gradient-bg.jpg gradient-bg-side.png
+recursive-exclude magic_dash/templates/magic-dash-pro-fastapi/assets/videos login-bg.mp4
+recursive-exclude magic_dash/templates/magic-dash-pro-fastapi/assets/imgs/login gradient-bg.jpg gradient-bg-side.png

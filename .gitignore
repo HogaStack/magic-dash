@@ -4,3 +4,9 @@ dist/
 **/*.db
 .vscode/
 *.pem
+magic_dash/templates/magic-dash-pro/assets/videos/login-bg.mp4
+magic_dash/templates/magic-dash-pro/assets/imgs/login/gradient-bg.jpg
+magic_dash/templates/magic-dash-pro/assets/imgs/login/gradient-bg-side.png
+magic_dash/templates/magic-dash-pro-fastapi/assets/videos/login-bg.mp4
+magic_dash/templates/magic-dash-pro-fastapi/assets/imgs/login/gradient-bg.jpg
+magic_dash/templates/magic-dash-pro-fastapi/assets/imgs/login/gradient-bg-side.png
