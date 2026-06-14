@@ -15,7 +15,7 @@ from views.status_pages import _404, _500  # 各状态页面
 from views import core_pages
 
 # 检查Python版本
-check_python_version(min_version="3.8", max_version="3.13")
+check_python_version(min_version="3.8", max_version="3.14")
 # 检查关键依赖库版本
 check_dependencies_version(
     requirements_file="./requirements.txt",
