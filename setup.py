@@ -17,8 +17,8 @@ setup(
     name="magic_dash",
     version=get_version(),
     author_email="fefferypzy@gmail.com",
-    homepage="https://github.com/CNFeffery/magic-dash",
-    author="CNFeffery <fefferypzy@gmail.com>",
+    homepage="https://github.com/HogaStack/magic-dash",
+    author="HogaStack <fefferypzy@gmail.com>",
     packages=find_packages(),
     license="MIT",
     description="A command-line tool for quickly generating standard Dash application projects.",
@@ -27,7 +27,7 @@ setup(
     classifiers=[
         "Framework :: Dash",
     ],
-    url="https://github.com/CNFeffery/magic-dash",
+    url="https://github.com/HogaStack/magic-dash",
     python_requires=">=3.8, <3.15",
     install_requires=["click", "rich", "questionary", "dash>=4.2.0,<5.0.0"],
     entry_points={

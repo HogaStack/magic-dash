@@ -90,8 +90,8 @@ magic-dash remove-assets
 
 ## 3 反馈和社区
 
-- `GitHub`仓库：[CNFeffery/magic-dash](https://github.com/CNFeffery/magic-dash)
-- 问题反馈：[`GitHub Issues`](https://github.com/CNFeffery/magic-dash/issues)
+- `GitHub`仓库：[HogaStack/magic-dash](https://github.com/HogaStack/magic-dash)
+- 问题反馈：[`GitHub Issues`](https://github.com/HogaStack/magic-dash/issues)
 - `PyPI`发布页：[magic-dash](https://pypi.org/project/magic-dash/)
 - 作者邮箱：<fefferypzy@gmail.com>
 
