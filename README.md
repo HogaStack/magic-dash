@@ -17,8 +17,16 @@
 
 ### 安装&更新
 
+- 最新正式版本
+
 ```bash
 pip install magic-dash -U
+```
+
+- 最新预发布版本
+
+```bash
+pip install magic-dash -U --pre
 ```
 
 查看当前安装版本：
