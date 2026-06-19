@@ -13,6 +13,7 @@ from configs import AuthConfig, BaseConfig
 from models import db
 from models.departments import Departments
 from models.users import Users
+from utils.validation_utils import validate_optional_email
 
 # 创建rich console实例
 console = Console()
@@ -72,6 +73,37 @@ def check_table_has_data(table_model):
         return table_model.select().count() > 0
 
 
+def ensure_user_email_column():
+    """确保用户信息表中存在邮箱字段"""
+
+    with db.connection_context():
+        table_name = Users._meta.table_name
+        column_names = {column.name for column in db.get_columns(table_name)}
+
+        if "user_email" in column_names:
+            return False
+
+        db.execute_sql(f"ALTER TABLE {table_name} ADD COLUMN user_email VARCHAR(255)")
+        return True
+
+
+def ask_admin_email():
+    """询问初始管理员邮箱，直接回车则跳过"""
+
+    while True:
+        value = questionary.text(
+            "初始管理员邮箱（可选）：",
+            style=custom_style,
+        ).ask()
+
+        value = (value or "").strip()
+
+        if validate_optional_email(value):
+            return value or None
+
+        console.print("[red]邮箱格式不正确[/red]")
+
+
 # 统一的questionary样式
 custom_style = questionary.Style(
     [
@@ -96,12 +128,21 @@ def main():
         Panel(title, subtitle=subtitle, border_style="bright_blue", padding=(1, 2))
     )
 
-    # 创建表（如果表不存在）
-    db.create_tables([Users, Departments])
+    # 预先检查部门和用户表是否已存在
+    departments_exists = check_table_exists(Departments)
+    users_exists = check_table_exists(Users)
 
     # 记录执行结果和管理员信息
     executed_operations = []
     admin_created = False
+    admin_email = None
+
+    # 创建表（如果表不存在）
+    db.create_tables([Users, Departments])
+
+    # 兼容旧版本已存在的用户信息表
+    if ensure_user_email_column():
+        executed_operations.append(("用户邮箱字段", "已自动补充", "yellow", "green"))
 
     # 0. RSA密钥对生成
     if BaseConfig.enable_login_rsa_crypto:
@@ -163,10 +204,8 @@ def main():
             ("RSA密钥对", "已跳过（未开启登录密码RSA加密）", "dim", "dim")
         )
 
-    # 1&2. 预先检查部门和用户表状态
-    departments_exists = check_table_exists(Departments)
+    # 1&2. 检查部门和用户表数据状态
     departments_has_data = departments_exists and check_table_has_data(Departments)
-    users_exists = check_table_exists(Users)
     users_has_data = users_exists and check_table_has_data(Users)
 
     # 判断是否需要用户交互（表存在且有数据时需要询问）
@@ -181,7 +220,7 @@ def main():
     if departments_exists and departments_has_data:
         # 表存在且有数据，询问是否重置
         confirm_departments = questionary.confirm(
-            "检测到部门信息表已存在且有数据，是否重置？",
+            "重置部门信息表？（Enter 跳过）",
             default=False,
             style=custom_style,
         ).ask()
@@ -207,13 +246,15 @@ def main():
     if users_exists and users_has_data:
         # 表存在且有数据，询问是否重置
         confirm_users = questionary.confirm(
-            "检测到用户信息表已存在且有数据，是否重置并初始化管理员账号？",
+            "重置用户信息表并初始化管理员账号？（Enter 跳过）",
             default=False,
             style=custom_style,
         ).ask()
 
         if confirm_users:
             try:
+                console.print("\n[dim]初始管理员账号[/dim]\n")
+                admin_email = ask_admin_email()
                 Users.truncate_users(execute=True)
 
                 # 初始化管理员用户
@@ -221,6 +262,7 @@ def main():
                     user_id="admin",
                     user_name="admin",
                     password_hash=generate_password_hash("admin123"),
+                    user_email=admin_email,
                     user_role=AuthConfig.admin_role,
                 )
 
@@ -237,6 +279,9 @@ def main():
     else:
         # 表不存在或没有数据，自动初始化
         try:
+            console.print("\n[dim]初始管理员账号[/dim]\n")
+            admin_email = ask_admin_email()
+
             if users_exists:
                 Users.truncate_users(execute=True)
 
@@ -245,6 +290,7 @@ def main():
                 user_id="admin",
                 user_name="admin",
                 password_hash=generate_password_hash("admin123"),
+                user_email=admin_email,
                 user_role=AuthConfig.admin_role,
             )
 
@@ -281,6 +327,12 @@ def main():
         result_text.append("admin\n", style="yellow bold")
         result_text.append("     初始密码: ", style="dim")
         result_text.append("admin123\n", style="yellow bold")
+        if admin_email:
+            result_text.append("     邮箱: ", style="dim")
+            result_text.append(f"{admin_email}\n", style="yellow bold")
+        else:
+            result_text.append("     邮箱: ", style="dim")
+            result_text.append("未设置\n", style="dim")
 
     console.print(
         Panel(

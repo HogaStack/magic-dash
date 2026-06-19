@@ -21,6 +21,9 @@ class Users(BaseModel):
     # 用户密码散列值
     password_hash = CharField()
 
+    # 用户邮箱，允许空值
+    user_email = CharField(null=True)
+
     # 用户角色，全部可选项见configs.AuthConfig.roles
     user_role = CharField(default=AuthConfig.normal_role)
 
@@ -85,6 +88,7 @@ class Users(BaseModel):
         user_id: str,
         user_name: str,
         password_hash: str,
+        user_email: str = None,
         department_id: str = None,
         user_role: str = "normal",
         other_info: Union[Dict, List] = None,
@@ -110,6 +114,7 @@ class Users(BaseModel):
                     user_id=user_id,
                     user_name=user_name,
                     password_hash=password_hash,
+                    user_email=user_email,
                     department_id=department_id,
                     user_role=user_role,
                     other_info=other_info,

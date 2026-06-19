@@ -10,6 +10,7 @@ from werkzeug.security import generate_password_hash
 
 from server import app
 from models.users import Users
+from utils.validation_utils import validate_optional_email
 
 
 def render():
@@ -53,6 +54,14 @@ def render_personal_info_modal(visible):
                     ),
                     fac.AntdFormItem(
                         fac.AntdInput(
+                            id="personal-info-user-email",
+                            placeholder="请输入邮箱",
+                            allowClear=True,
+                        ),
+                        label="邮箱",
+                    ),
+                    fac.AntdFormItem(
+                        fac.AntdInput(
                             id="personal-info-user-password",
                             placeholder="请输入新的密码",
                             mode="password",
@@ -66,7 +75,10 @@ def render_personal_info_modal(visible):
                 key=str(uuid.uuid4()),  # 强制刷新
                 enableBatchControl=True,
                 layout="vertical",
-                values={"personal-info-user-name": match_user.user_name},
+                values={
+                    "personal-info-user-name": match_user.user_name,
+                    "personal-info-user-email": match_user.user_email or "",
+                },
                 style=style(marginTop=32),
             ),
             False,
@@ -99,6 +111,20 @@ def handle_personal_info_update(okCounts, values):
         )
 
     else:
+        user_email = (values.get("personal-info-user-email") or "").strip()
+
+        if not validate_optional_email(user_email):
+            set_props(
+                "global-message",
+                {
+                    "children": fac.AntdMessage(
+                        type="error",
+                        content="邮箱格式不正确",
+                    )
+                },
+            )
+            return
+
         # 检查用户名是否重复
         match_user = Users.get_user_by_name(values["personal-info-user-name"])
 
@@ -115,21 +141,19 @@ def handle_personal_info_update(okCounts, values):
             )
 
         else:
+            update_kwargs = {
+                "user_name": values["personal-info-user-name"],
+                "user_email": user_email or None,
+            }
+
             # 更新用户信息
             if values.get("personal-info-user-password"):
-                # 同时更新用户名和密码散列值
-                Users.update_user(
-                    user_id=current_user.id,
-                    user_name=values["personal-info-user-name"],
-                    password_hash=generate_password_hash(
-                        values["personal-info-user-password"]
-                    ),
+                # 同时更新密码散列值
+                update_kwargs["password_hash"] = generate_password_hash(
+                    values["personal-info-user-password"]
                 )
-            else:
-                # 只更新用户名
-                Users.update_user(
-                    user_id=current_user.id, user_name=values["personal-info-user-name"]
-                )
+
+            Users.update_user(user_id=current_user.id, **update_kwargs)
 
             set_props(
                 "global-message",
