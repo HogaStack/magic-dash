@@ -1,6 +1,7 @@
 import os
 
 import questionary
+from peewee import fn
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
@@ -73,18 +74,54 @@ def check_table_has_data(table_model):
         return table_model.select().count() > 0
 
 
-def ensure_user_email_column():
-    """确保用户信息表中存在邮箱字段"""
+def ensure_user_email_schema():
+    """确保用户邮箱字段及其唯一约束存在"""
 
     with db.connection_context():
         table_name = Users._meta.table_name
         column_names = {column.name for column in db.get_columns(table_name)}
+        changes = []
 
-        if "user_email" in column_names:
-            return False
+        if "user_email" not in column_names:
+            db.execute_sql(
+                f"ALTER TABLE {table_name} ADD COLUMN user_email VARCHAR(255)"
+            )
+            changes.append("用户邮箱字段")
 
-        db.execute_sql(f"ALTER TABLE {table_name} ADD COLUMN user_email VARCHAR(255)")
-        return True
+        # 旧版本可能以空字符串表示未设置邮箱，统一转换为NULL以允许多个空邮箱。
+        Users.update(user_email=None).where(Users.user_email == "").execute()
+
+        indexes = db.get_indexes(table_name)
+        has_unique_email_index = any(
+            index.unique and list(index.columns) == ["user_email"]
+            for index in indexes
+        )
+
+        if not has_unique_email_index:
+            duplicate_emails = [
+                item["user_email"]
+                for item in (
+                    Users.select(Users.user_email)
+                    .where(Users.user_email.is_null(False))
+                    .group_by(Users.user_email)
+                    .having(fn.COUNT(Users.user_id) > 1)
+                    .dicts()
+                )
+            ]
+            if duplicate_emails:
+                raise RuntimeError(
+                    "无法为用户邮箱建立唯一约束，以下邮箱存在重复：{}".format(
+                        ", ".join(duplicate_emails)
+                    )
+                )
+
+            index_name = f"{table_name}_user_email_unique"
+            db.execute_sql(
+                f"CREATE UNIQUE INDEX {index_name} ON {table_name} (user_email)"
+            )
+            changes.append("用户邮箱唯一约束")
+
+        return changes
 
 
 def ask_admin_email():
@@ -141,8 +178,8 @@ def main():
     db.create_tables([Users, Departments])
 
     # 兼容旧版本已存在的用户信息表
-    if ensure_user_email_column():
-        executed_operations.append(("用户邮箱字段", "已自动补充", "yellow", "green"))
+    for operation in ensure_user_email_schema():
+        executed_operations.append((operation, "已自动补充", "yellow", "green"))
 
     # 0. RSA密钥对生成
     if BaseConfig.enable_login_rsa_crypto:

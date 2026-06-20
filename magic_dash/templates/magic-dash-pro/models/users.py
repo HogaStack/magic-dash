@@ -21,8 +21,8 @@ class Users(BaseModel):
     # 用户密码散列值
     password_hash = CharField()
 
-    # 用户邮箱，允许空值
-    user_email = CharField(null=True)
+    # 用户邮箱，允许空值；非空邮箱必须唯一
+    user_email = CharField(null=True, unique=True)
 
     # 用户角色，全部可选项见configs.AuthConfig.roles
     user_role = CharField(default=AuthConfig.normal_role)
@@ -49,6 +49,17 @@ class Users(BaseModel):
 
         with db.connection_context():
             return cls.get_or_none(cls.user_name == user_name)
+
+    @classmethod
+    def get_user_by_email(cls, user_email: str):
+        """根据非空邮箱查询用户信息"""
+
+        user_email = (user_email or "").strip()
+        if not user_email:
+            return None
+
+        with db.connection_context():
+            return cls.get_or_none(cls.user_email == user_email)
 
     @classmethod
     def get_users_by_department_id(cls, department_id: str):
@@ -96,6 +107,8 @@ class Users(BaseModel):
         """添加用户"""
 
         with db.connection_context():
+            user_email = (user_email or "").strip() or None
+
             # 若必要用户信息不完整
             if not (user_id and user_name and password_hash):
                 raise InvalidUserError("用户信息不完整")
@@ -107,6 +120,10 @@ class Users(BaseModel):
             # 若用户名存在重复
             elif cls.get_or_none(cls.user_name == user_name):
                 raise ExistingUserError("用户名已存在")
+
+            # 若非空邮箱存在重复
+            elif user_email and cls.get_or_none(cls.user_email == user_email):
+                raise ExistingUserError("邮箱已被其他用户使用")
 
             # 执行用户添加操作
             with db.atomic():
@@ -143,6 +160,20 @@ class Users(BaseModel):
         """更新用户信息"""
 
         with db.connection_context():
+            if "user_email" in kwargs:
+                user_email = (kwargs["user_email"] or "").strip() or None
+                kwargs["user_email"] = user_email
+
+                duplicate_user = (
+                    cls.get_or_none(
+                        (cls.user_email == user_email) & (cls.user_id != user_id)
+                    )
+                    if user_email
+                    else None
+                )
+                if duplicate_user:
+                    raise ExistingUserError("邮箱已被其他用户使用")
+
             with db.atomic():
                 cls.update(**kwargs).where(cls.user_id == user_id).execute()
 
