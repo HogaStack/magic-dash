@@ -69,3 +69,6 @@ class BaseConfig:
 
     # 针对用户登录页面，是否添加额外的滑块验证
     enable_login_captcha: bool = False
+
+    # 针对用户登录页面，是否启用邮箱登录功能
+    enable_email_login: bool = False

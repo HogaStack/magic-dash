@@ -113,6 +113,19 @@ def assert_backend_created(project_path, template_name, backend):
     if template_name == "magic-dash-pro":
         assert_pro_public_assets_created(project_path)
 
+        if backend == "flask":
+            email_feature_files = [
+                os.path.join("configs", "email_config.py"),
+                os.path.join("models", "email_verifications.py"),
+                os.path.join("utils", "email_utils.py"),
+            ]
+            for relative_path in email_feature_files:
+                target_path = os.path.join(project_path, relative_path)
+                assert os.path.exists(target_path), (
+                    f"邮箱登录文件未生成: {relative_path}"
+                )
+                py_compile.compile(target_path, doraise=True)
+
     if backend == "fastapi":
         assert 'backend="fastapi"' in dash_content
         if template_name == "magic-dash-pro":

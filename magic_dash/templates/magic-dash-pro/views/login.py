@@ -103,6 +103,11 @@ def render():
         # 渐变内容区由CSS统一承载背景图与循环动效，三种登录布局共用
         login_content = [html.Div(className="login-gradient-content-bg")]
 
+    # 生成更多登录方式入口控件
+    more_login_options = []
+    if BaseConfig.enable_email_login:
+        more_login_options.append({"title": "邮箱验证登录", "key": "email"})
+
     # 登录控件区：在居中布局中由AntdCenter承担玻璃拟态容器样式
     login_form = fac.AntdCenter(
         [
@@ -175,8 +180,32 @@ def render():
                                     if BaseConfig.enable_login_captcha
                                     else None
                                 ),
-                                fac.AntdCheckbox(
-                                    id="login-remember-me", label="记住我"
+                                fac.AntdFlex(
+                                    [
+                                        fac.AntdCheckbox(
+                                            id="login-remember-me", label="记住我"
+                                        ),
+                                        (
+                                            fac.Fragment(
+                                                [
+                                                    # 更多登陆方式入口
+                                                    fac.AntdDropdown(
+                                                        id="login-more-options-trigger",
+                                                        title="更多登录方式",
+                                                        menuItems=more_login_options,
+                                                        placement="topCenter",
+                                                    ),
+                                                    # 配合更多登录方式的登录模态框挂载目标
+                                                    fac.Fragment(
+                                                        id="login-more-options-modal-target"
+                                                    ),
+                                                ]
+                                            )
+                                            if more_login_options
+                                            else None
+                                        ),
+                                    ],
+                                    justify="space-between",
                                 ),
                                 fac.AntdButton(
                                     "登录",
