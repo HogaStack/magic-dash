@@ -13,6 +13,7 @@ from werkzeug.security import generate_password_hash
 from configs import AuthConfig, BaseConfig
 from models import db
 from models.departments import Departments
+from models.email_verifications import EmailVerifications
 from models.users import Users
 from utils.validation_utils import validate_optional_email
 
@@ -93,8 +94,7 @@ def ensure_user_email_schema():
 
         indexes = db.get_indexes(table_name)
         has_unique_email_index = any(
-            index.unique and list(index.columns) == ["user_email"]
-            for index in indexes
+            index.unique and list(index.columns) == ["user_email"] for index in indexes
         )
 
         if not has_unique_email_index:
@@ -122,6 +122,23 @@ def ensure_user_email_schema():
             changes.append("用户邮箱唯一约束")
 
         return changes
+
+
+def ensure_email_verification_schema():
+    """确保邮箱验证码表中存在错误校验次数字段"""
+
+    with db.connection_context():
+        table_name = EmailVerifications._meta.table_name
+        column_names = {column.name for column in db.get_columns(table_name)}
+
+        if "failed_attempts" in column_names:
+            return False
+
+        db.execute_sql(
+            f"ALTER TABLE {table_name} "
+            "ADD COLUMN failed_attempts INTEGER NOT NULL DEFAULT 0"
+        )
+        return True
 
 
 def ask_admin_email():
@@ -175,7 +192,13 @@ def main():
     admin_email = None
 
     # 创建表（如果表不存在）
-    db.create_tables([Users, Departments])
+    db.create_tables([Users, Departments, EmailVerifications])
+
+    # 兼容早期已存在的邮箱验证码信息表
+    if ensure_email_verification_schema():
+        executed_operations.append(
+            ("邮箱验证码错误计数字段", "已自动补充", "yellow", "green")
+        )
 
     # 兼容旧版本已存在的用户信息表
     for operation in ensure_user_email_schema():

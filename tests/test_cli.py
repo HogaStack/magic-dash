@@ -113,7 +113,7 @@ def assert_backend_created(project_path, template_name, backend):
     if template_name == "magic-dash-pro":
         assert_pro_public_assets_created(project_path)
 
-        if backend == "flask":
+        if backend in ["flask", "fastapi"]:
             email_feature_files = [
                 os.path.join("configs", "email_config.py"),
                 os.path.join("models", "email_verifications.py"),
