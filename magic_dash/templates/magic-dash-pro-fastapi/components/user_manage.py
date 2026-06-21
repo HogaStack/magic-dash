@@ -295,6 +295,7 @@ def handle_add_user(okCounts, values):
         match_user = Users.get_user_by_name(
             values["user-manage-add-user-form-user-name"]
         )
+        match_email_user = Users.get_user_by_email(user_email)
 
         # 若用户名重复
         if match_user:
@@ -304,6 +305,18 @@ def handle_add_user(okCounts, values):
                     "children": fac.AntdMessage(
                         type="error",
                         content="用户名已存在",
+                    )
+                },
+            )
+
+        # 若非空邮箱已被其他用户使用
+        elif match_email_user:
+            set_props(
+                "global-message",
+                {
+                    "children": fac.AntdMessage(
+                        type="error",
+                        content="邮箱已被其他用户使用",
                     )
                 },
             )

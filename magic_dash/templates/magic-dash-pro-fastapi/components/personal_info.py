@@ -126,6 +126,7 @@ def handle_personal_info_update(okCounts, values):
 
         # 检查用户名是否重复
         match_user = Users.get_user_by_name(values["personal-info-user-name"])
+        match_email_user = Users.get_user_by_email(user_email)
 
         # 若与其他用户用户名重复
         if match_user and match_user.user_id != current_user.id:
@@ -135,6 +136,18 @@ def handle_personal_info_update(okCounts, values):
                     "children": fac.AntdMessage(
                         type="error",
                         content="用户名已存在",
+                    )
+                },
+            )
+
+        # 若非空邮箱已被其他用户使用
+        elif match_email_user and match_email_user.user_id != current_user.id:
+            set_props(
+                "global-message",
+                {
+                    "children": fac.AntdMessage(
+                        type="error",
+                        content="邮箱已被其他用户使用",
                     )
                 },
             )
