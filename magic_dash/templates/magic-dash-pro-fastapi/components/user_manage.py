@@ -12,6 +12,7 @@ from models.users import Users
 from models.departments import Departments
 
 from configs import AuthConfig
+from utils.validation_utils import validate_optional_email
 
 
 def render():
@@ -34,6 +35,7 @@ def refresh_user_manage_table_data():
         {
             "user_id": item["user_id"],
             "user_name": item["user_name"],
+            "user_email": item["user_email"] or "无",
             "user_department": item["department_name"] or "无",
             "user_role": {
                 "tag": AuthConfig.roles.get(item["user_role"])["description"],
@@ -103,6 +105,13 @@ def render_user_manage_drawer(visible):
                                     },
                                 },
                                 {
+                                    "dataIndex": "user_email",
+                                    "title": "邮箱",
+                                    "renderOptions": {
+                                        "renderType": "ellipsis-copyable",
+                                    },
+                                },
+                                {
                                     "dataIndex": "user_department",
                                     "title": "所属部门",
                                     "renderOptions": {
@@ -126,6 +135,9 @@ def render_user_manage_drawer(visible):
                             tableLayout="fixed",
                             filterOptions={
                                 "user_name": {
+                                    "filterMode": "keyword",
+                                },
+                                "user_email": {
                                     "filterMode": "keyword",
                                 },
                                 "user_department": {
@@ -183,6 +195,14 @@ def open_add_user_modal(nClicks):
                         allowClear=True,
                     ),
                     label="用户名",
+                ),
+                fac.AntdFormItem(
+                    fac.AntdInput(
+                        id="user-manage-add-user-form-user-email",
+                        placeholder="请输入邮箱",
+                        allowClear=True,
+                    ),
+                    label="邮箱",
                 ),
                 fac.AntdFormItem(
                     fac.AntdInput(
@@ -257,6 +277,20 @@ def handle_add_user(okCounts, values):
         )
 
     else:
+        user_email = (values.get("user-manage-add-user-form-user-email") or "").strip()
+
+        if not validate_optional_email(user_email):
+            set_props(
+                "global-message",
+                {
+                    "children": fac.AntdMessage(
+                        type="error",
+                        content="邮箱格式不正确",
+                    )
+                },
+            )
+            return
+
         # 检查用户名是否重复
         match_user = Users.get_user_by_name(
             values["user-manage-add-user-form-user-name"]
@@ -282,6 +316,7 @@ def handle_add_user(okCounts, values):
                 password_hash=generate_password_hash(
                     values["user-manage-add-user-form-user-password"]
                 ),
+                user_email=user_email or None,
                 department_id=values.get("user-manage-add-user-form-department-id"),
                 user_role=values["user-manage-add-user-form-user-role"],
             )
