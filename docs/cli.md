@@ -44,7 +44,7 @@ magic-dash list
 | 模板 | 说明 |
 | --- | --- |
 | `magic-dash` | 适用于多页面、持续扩展的应用模板 |
-| `magic-dash-pro` | 适用于多页面、持续扩展的管理型应用模板，支持复杂用户与部门关系、用户登录、管理和鉴权能力 |
+| `magic-dash-pro` | 适用于多页面、持续扩展的管理型应用模板，支持复杂用户与部门关系、用户名密码及邮件验证码登录、管理和鉴权能力 |
 | `simple-tool` | 单页面工具应用模板 |
 
 `magic-dash-pro-fastapi`是`magic-dash-pro`的内部`FastAPI`后端变体，不会出现在顶层模板列表中，也不能通过`--name magic-dash-pro-fastapi`直接创建。
@@ -210,6 +210,8 @@ python app.py
 python -m magic_init
 python app.py
 ```
+
+初始化过程会提示填写可选的管理员邮箱，并创建或升级邮件验证码登录所需的数据表结构。邮件验证码登录默认关闭，启用方式及`SMTP`参数见[`magic-dash-pro`配置参数](./magic-dash-pro/配置参数.md)。
 
 默认管理员账号：
 

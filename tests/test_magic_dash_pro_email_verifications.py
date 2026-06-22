@@ -283,7 +283,7 @@ def test_email_config_uses_safe_template_defaults(email_utils):
     assert email_config.sender_email == ""
     assert email_config.sender_password == ""
     assert email_config.sender_name == module.BaseConfig.app_title
-    assert email_config.verification_code_expire_seconds == 60
+    assert email_config.verification_code_expire_seconds == 300
     assert email_config.verification_code_max_attempts == 5
     assert not module.BaseConfig.enable_email_login
 

@@ -32,6 +32,8 @@ magic-dash create --name magic-dash-pro --backend fastapi
 
 这些文件在`Flask`和`FastAPI`后端中实现方式不同，应以新`FastAPI`模板为基准，再合并原项目中的业务改动。
 
+如果项目启用了邮件验证码登录，还应以新模板中的`configs/email_config.py`、`models/email_verifications.py`和`utils/email_utils.py`为基准。两种后端的邮件配置和验证码模型一致，但登录会话的建立仍由各自的`callbacks/login_c.py`完成，因此不应直接用`Flask`版本覆盖`FastAPI`版本。
+
 ## 依赖调整
 
 `Flask`后端常见依赖：
@@ -417,4 +419,6 @@ uvicorn app:app.server --host 0.0.0.0 --port 8050 --workers 4
 - 原`Flask`接口已改写为`FastAPI`路由。
 - 原`before_request`逻辑已改写为`FastAPI`中间件。
 - 原`g`、`session`上下文依赖已迁移到`request.state`、数据库、缓存或前端状态。
+- 如启用邮件验证码登录，已迁移`EmailConfig`中的`SMTP`配置，并确认用户邮箱保持唯一。
+- 已在目标项目运行`python -m magic_init`，创建或升级用户邮箱和邮件验证码相关表结构。
 - 部署命令已切换为`uvicorn app:app.server --host 0.0.0.0 --port 8050 --workers 4`。
