@@ -31,7 +31,7 @@ class EmailConfig:
     smtp_timeout: int = 10
 
     # 邮箱验证码有效期及重复发送等待时间，单位：秒
-    verification_code_expire_seconds: int = 60
+    verification_code_expire_seconds: int = 300
 
     # 单个邮箱验证码允许的最大错误校验次数
     verification_code_max_attempts: int = 5
