@@ -3,6 +3,7 @@ import sys
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
+from email import message_from_string
 from pathlib import Path
 from unittest.mock import patch
 
@@ -241,6 +242,37 @@ def test_send_email_uses_configured_smtp_authorization(email_utils):
     send_args = smtp_client.sendmail.call_args.args
     assert send_args[0] == "sender@163.com"
     assert send_args[1] == "recipient@qq.com"
+
+
+def test_verification_email_contains_styled_html_and_plain_text(email_utils):
+    module, email_config = email_utils
+    email_config.smtp_server = "smtp.example.com"
+    email_config.smtp_port = 25
+    email_config.sender_email = "sender@example.com"
+    email_config.sender_password = "smtp-auth-code"
+    module.BaseConfig.app_title = "Internal Console"
+
+    with patch.object(module.smtplib, "SMTP") as smtp_class:
+        module.send_email_verification_code("user@example.com", "012345")
+
+    raw_message = smtp_class.return_value.sendmail.call_args.args[2]
+    message = message_from_string(raw_message)
+    parts = message.get_payload()
+    plain_content = parts[0].get_payload(decode=True).decode("utf-8")
+    html_content = parts[1].get_payload(decode=True).decode("utf-8")
+
+    assert message.get_content_type() == "multipart/alternative"
+    assert [part.get_content_type() for part in parts] == ["text/plain", "text/html"]
+    assert "Internal Console" in plain_content
+    assert "012345" in plain_content
+    assert "有效期至：" in plain_content
+    assert "UTC" in plain_content
+    assert "Internal Console" in html_content
+    assert "012345" in html_content
+    assert "此邮件由 Internal Console 系统自动发送" in html_content
+    assert "<img" not in html_content
+    assert "http://" not in html_content
+    assert "https://" not in html_content
 
 
 def test_email_config_uses_safe_template_defaults(email_utils):
