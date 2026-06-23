@@ -9,7 +9,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-__version__ = "0.5.0rc5"
+__version__ = "0.5.0rc6"
 
 
 # 创建rich console实例

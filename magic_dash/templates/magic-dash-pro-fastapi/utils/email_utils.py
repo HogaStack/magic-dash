@@ -53,6 +53,16 @@ def _validate_email_config():
         or EmailConfig.verification_code_expire_seconds <= 0
     ):
         raise ValueError("邮箱验证码有效期必须为正整数")
+    if (
+        not isinstance(EmailConfig.verification_code_resend_interval_seconds, int)
+        or EmailConfig.verification_code_resend_interval_seconds <= 0
+    ):
+        raise ValueError("邮箱验证码重复发送等待时间必须为正整数")
+    if (
+        EmailConfig.verification_code_resend_interval_seconds
+        > EmailConfig.verification_code_expire_seconds
+    ):
+        raise ValueError("邮箱验证码重复发送等待时间不能超过有效期")
 
 
 def _format_expiration_time(expire_seconds: int) -> str:
@@ -65,7 +75,7 @@ def _format_expiration_time(expire_seconds: int) -> str:
     else:
         utc_offset = "+00:00"
 
-    return f'{expires_at.strftime("%Y-%m-%d %H:%M:%S")} (UTC{utc_offset})'
+    return f"{expires_at.strftime('%Y-%m-%d %H:%M:%S')} (UTC{utc_offset})"
 
 
 def _build_verification_email(verification_code: str, expire_seconds: int):

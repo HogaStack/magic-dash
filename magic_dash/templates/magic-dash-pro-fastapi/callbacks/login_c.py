@@ -356,9 +356,16 @@ def send_login_user_email_captcha(nClicks, email):
         return
 
     expire_seconds = EmailConfig.verification_code_expire_seconds
+    resend_interval_seconds = EmailConfig.verification_code_resend_interval_seconds
 
-    if not isinstance(expire_seconds, int) or expire_seconds <= 0:
-        app.server.logger.error("邮箱验证码有效期配置不正确")
+    if (
+        not isinstance(expire_seconds, int)
+        or expire_seconds <= 0
+        or not isinstance(resend_interval_seconds, int)
+        or resend_interval_seconds <= 0
+        or resend_interval_seconds > expire_seconds
+    ):
+        app.server.logger.error("邮箱验证码有效期或重复发送等待时间配置不正确")
         set_props(
             "global-message",
             {
@@ -417,9 +424,13 @@ def send_login_user_email_captcha(nClicks, email):
         return
 
     try:
-        verification, remaining_seconds = EmailVerifications.issue_verification(
+        (
+            verification,
+            remaining_seconds,
+            previous_verification,
+        ) = EmailVerifications.issue_verification(
             email,
-            expire_seconds,
+            resend_interval_seconds,
         )
     except Exception:
         app.server.logger.exception("邮箱登录验证码签发失败")
@@ -465,10 +476,9 @@ def send_login_user_email_captcha(nClicks, email):
     except Exception:
         app.server.logger.exception("邮箱登录验证码发送失败")
         try:
-            EmailVerifications.delete_verification(
-                email,
-                verification.verification_code,
-                verification.generated_at,
+            EmailVerifications.rollback_issued_verification(
+                verification,
+                previous_verification,
             )
         except Exception:
             app.server.logger.exception("发送失败后的邮箱验证码清理失败")
@@ -499,7 +509,7 @@ def send_login_user_email_captcha(nClicks, email):
     )
     set_props(
         "login-user-email-captcha-retry-countdown",
-        {"delay": expire_seconds, "key": str(uuid.uuid4())},
+        {"delay": resend_interval_seconds, "key": str(uuid.uuid4())},
     )
     set_props(
         "login-user-email-captcha-send",
@@ -610,7 +620,6 @@ def handle_login_user_email_submit(nClicks, email, verification_code):
             email,
             verification_code,
             EmailConfig.verification_code_expire_seconds,
-            EmailConfig.verification_code_max_attempts,
         )
     except Exception:
         app.server.logger.exception("邮箱登录验证码校验失败")
@@ -631,7 +640,6 @@ def handle_login_user_email_submit(nClicks, email, verification_code):
         "not_found": "邮箱或验证码错误",
         "expired": "验证码已过期，请重新获取",
         "invalid": "邮箱或验证码错误",
-        "too_many_attempts": "验证码错误次数过多，请稍后重新获取",
     }
 
     if verify_result != "valid":

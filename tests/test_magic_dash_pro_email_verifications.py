@@ -69,19 +69,25 @@ def test_verification_issue_refresh_and_single_use(
         staticmethod(lambda: next(verification_codes)),
     )
 
-    first_verification, remaining_seconds = model.issue_verification(
-        "user@example.com",
-        60,
+    first_verification, remaining_seconds, previous_verification = (
+        model.issue_verification(
+            "user@example.com",
+            60,
+        )
     )
     assert first_verification.verification_code == "111111"
     assert remaining_seconds == 0
+    assert previous_verification is None
 
-    blocked_verification, remaining_seconds = model.issue_verification(
-        "user@example.com",
-        60,
+    blocked_verification, remaining_seconds, previous_verification = (
+        model.issue_verification(
+            "user@example.com",
+            60,
+        )
     )
     assert blocked_verification is None
     assert 1 <= remaining_seconds <= 60
+    assert previous_verification is None
     assert model.get_verification("user@example.com").verification_code == "111111"
 
     (
@@ -89,20 +95,23 @@ def test_verification_issue_refresh_and_single_use(
         .where(model.email == "user@example.com")
         .execute()
     )
-    refreshed_verification, remaining_seconds = model.issue_verification(
-        "user@example.com",
-        60,
+    refreshed_verification, remaining_seconds, previous_verification = (
+        model.issue_verification(
+            "user@example.com",
+            60,
+        )
     )
     assert refreshed_verification.verification_code == "333333"
     assert remaining_seconds == 0
+    assert previous_verification.verification_code == "111111"
 
-    assert model.verify_code("user@example.com", "000000", 60, 5) == "invalid"
+    assert model.verify_code("user@example.com", "000000", 300) == "invalid"
     assert model.get_verification("user@example.com") is not None
-    assert model.verify_code("user@example.com", "333333", 60, 5) == "valid"
-    assert model.verify_code("user@example.com", "333333", 60, 5) == "not_found"
+    assert model.verify_code("user@example.com", "333333", 300) == "valid"
+    assert model.verify_code("user@example.com", "333333", 300) == "not_found"
 
 
-def test_verification_rejects_attempts_after_limit(
+def test_verification_does_not_lock_after_invalid_attempts(
     email_verification_model,
     monkeypatch,
 ):
@@ -114,11 +123,111 @@ def test_verification_rejects_attempts_after_limit(
     )
     model.issue_verification("user@example.com", 60)
 
-    for _ in range(4):
-        assert model.verify_code("user@example.com", "000000", 60, 5) == "invalid"
+    for _ in range(20):
+        assert model.verify_code("user@example.com", "000000", 300) == "invalid"
 
-    assert model.verify_code("user@example.com", "000000", 60, 5) == "too_many_attempts"
-    assert model.verify_code("user@example.com", "123456", 60, 5) == "too_many_attempts"
+    assert model.verify_code("user@example.com", "123456", 300) == "valid"
+
+
+def test_resend_interval_is_independent_from_expiration(
+    email_verification_model,
+    monkeypatch,
+):
+    model = email_verification_model
+    monkeypatch.setattr(model, "generate_code", staticmethod(lambda: "123456"))
+    model.issue_verification("user@example.com", 60)
+    (
+        model.update(generated_at=datetime.now() - timedelta(seconds=61))
+        .where(model.email == "user@example.com")
+        .execute()
+    )
+
+    assert model.get_resend_remaining_seconds("user@example.com", 60) == 0
+    assert model.verify_code("user@example.com", "123456", 300) == "valid"
+
+
+def test_failed_resend_can_restore_previous_verification(
+    email_verification_model,
+    monkeypatch,
+):
+    model = email_verification_model
+    verification_codes = iter(["111111", "222222"])
+    monkeypatch.setattr(
+        model,
+        "generate_code",
+        staticmethod(lambda: next(verification_codes)),
+    )
+    model.issue_verification("user@example.com", 60)
+    old_generated_at = datetime.now() - timedelta(seconds=61)
+    (
+        model.update(generated_at=old_generated_at)
+        .where(model.email == "user@example.com")
+        .execute()
+    )
+
+    verification, _, previous_verification = model.issue_verification(
+        "user@example.com",
+        60,
+    )
+    assert model.rollback_issued_verification(verification, previous_verification) == 1
+    restored = model.get_verification("user@example.com")
+    assert restored.verification_code == "111111"
+    assert restored.generated_at == old_generated_at
+
+
+def test_failed_initial_send_removes_issued_verification(
+    email_verification_model,
+    monkeypatch,
+):
+    model = email_verification_model
+    monkeypatch.setattr(model, "generate_code", staticmethod(lambda: "123456"))
+    verification, _, previous_verification = model.issue_verification(
+        "user@example.com",
+        60,
+    )
+
+    assert previous_verification is None
+    assert model.rollback_issued_verification(verification) == 1
+    assert model.get_verification("user@example.com") is None
+
+
+def test_stale_rollback_does_not_overwrite_newer_verification(
+    email_verification_model,
+    monkeypatch,
+):
+    model = email_verification_model
+    verification_codes = iter(["111111", "222222"])
+    monkeypatch.setattr(
+        model,
+        "generate_code",
+        staticmethod(lambda: next(verification_codes)),
+    )
+    first_verification, _, _ = model.issue_verification("user@example.com", 60)
+    old_generated_at = datetime.now() - timedelta(seconds=61)
+    (
+        model.update(generated_at=old_generated_at)
+        .where(model.email == "user@example.com")
+        .execute()
+    )
+    replacement, _, previous_verification = model.issue_verification(
+        "user@example.com",
+        60,
+    )
+    newer_generated_at = datetime.now() + timedelta(seconds=1)
+    (
+        model.update(
+            verification_code="333333",
+            generated_at=newer_generated_at,
+        )
+        .where(model.email == "user@example.com")
+        .execute()
+    )
+
+    assert first_verification.verification_code == "111111"
+    assert model.rollback_issued_verification(replacement, previous_verification) == 0
+    current = model.get_verification("user@example.com")
+    assert current.verification_code == "333333"
+    assert current.generated_at == newer_generated_at
 
 
 def test_expired_cleanup_does_not_delete_refreshed_verification(
@@ -164,15 +273,15 @@ def test_concurrent_issue_allows_only_one_active_verification(
     with ThreadPoolExecutor(max_workers=2) as executor:
         results = list(executor.map(lambda _: issue_verification(), range(2)))
 
-    issued_count = sum(verification is not None for verification, _ in results)
-    blocked_count = sum(remaining > 0 for _, remaining in results)
+    issued_count = sum(verification is not None for verification, _, _ in results)
+    blocked_count = sum(remaining > 0 for _, remaining, _ in results)
 
     assert issued_count == 1
     assert blocked_count == 1
     assert model.select().where(model.email == "user@example.com").count() == 1
 
 
-def test_magic_init_upgrades_legacy_verification_table(tmp_path, monkeypatch):
+def test_legacy_failed_attempts_column_remains_compatible(tmp_path, monkeypatch):
     pytest.importorskip("peewee")
     clear_template_modules()
     sys.modules.pop("magic_init", None)
@@ -185,15 +294,28 @@ def test_magic_init_upgrades_legacy_verification_table(tmp_path, monkeypatch):
         f"CREATE TABLE {table_name} ("
         "email VARCHAR(255) PRIMARY KEY, "
         "verification_code VARCHAR(6) NOT NULL, "
-        "generated_at DATETIME NOT NULL)"
+        "generated_at DATETIME NOT NULL, "
+        "failed_attempts INTEGER NOT NULL DEFAULT 0)"
     )
 
     magic_init = importlib.import_module("magic_init")
-    assert magic_init.ensure_email_verification_schema()
+    assert not hasattr(magic_init, "ensure_email_verification_schema")
     assert "failed_attempts" in {
         column.name for column in model_module.db.get_columns(table_name)
     }
-    assert not magic_init.ensure_email_verification_schema()
+    verification, _, _ = model_module.EmailVerifications.issue_verification(
+        "user@example.com",
+        60,
+    )
+    assert verification.verification_code.isdigit()
+    assert (
+        model_module.EmailVerifications.verify_code(
+            "user@example.com",
+            verification.verification_code,
+            300,
+        )
+        == "valid"
+    )
 
     if not model_module.db.is_closed():
         model_module.db.close()
@@ -284,7 +406,8 @@ def test_email_config_uses_safe_template_defaults(email_utils):
     assert email_config.sender_password == ""
     assert email_config.sender_name == module.BaseConfig.app_title
     assert email_config.verification_code_expire_seconds == 300
-    assert email_config.verification_code_max_attempts == 5
+    assert email_config.verification_code_resend_interval_seconds == 60
+    assert not hasattr(email_config, "verification_code_max_attempts")
     assert not module.BaseConfig.enable_email_login
 
 
@@ -298,4 +421,17 @@ def test_send_email_rejects_conflicting_tls_modes(email_utils):
     email_config.smtp_use_starttls = True
 
     with pytest.raises(ValueError, match="不能同时开启"):
+        module.send_email_verification_code("recipient@example.com", "012345")
+
+
+def test_send_email_rejects_resend_interval_longer_than_expiration(email_utils):
+    module, email_config = email_utils
+    email_config.smtp_server = "smtp.example.com"
+    email_config.smtp_port = 465
+    email_config.sender_email = "sender@example.com"
+    email_config.sender_password = "smtp-auth-code"
+    email_config.verification_code_expire_seconds = 60
+    email_config.verification_code_resend_interval_seconds = 61
+
+    with pytest.raises(ValueError, match="重复发送等待时间不能超过有效期"):
         module.send_email_verification_code("recipient@example.com", "012345")

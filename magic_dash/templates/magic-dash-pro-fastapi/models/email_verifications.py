@@ -2,7 +2,7 @@ import math
 import secrets
 from datetime import datetime, timedelta
 
-from peewee import CharField, DateTimeField, IntegerField, IntegrityError
+from peewee import CharField, DateTimeField, IntegrityError
 
 from . import db, BaseModel
 
@@ -19,9 +19,6 @@ class EmailVerifications(BaseModel):
     # 验证码生成时间
     generated_at = DateTimeField(default=datetime.now)
 
-    # 当前验证码累计错误校验次数
-    failed_attempts = IntegerField(default=0)
-
     @staticmethod
     def generate_code() -> str:
         """生成6位数字验证码"""
@@ -29,18 +26,20 @@ class EmailVerifications(BaseModel):
         return f"{secrets.randbelow(1000000):06d}"
 
     @staticmethod
-    def _validate_expire_seconds(expire_seconds: int):
-        """校验验证码有效期参数"""
+    def _validate_seconds(seconds: int, parameter_name: str):
+        """校验以秒为单位的正整数参数"""
 
-        if not isinstance(expire_seconds, int) or expire_seconds <= 0:
-            raise ValueError("邮箱验证码有效期必须为正整数")
+        if not isinstance(seconds, int) or seconds <= 0:
+            raise ValueError(f"{parameter_name}必须为正整数")
 
     @staticmethod
-    def _get_record_remaining_seconds(verification, expire_seconds: int) -> int:
-        """计算验证码记录的剩余有效秒数"""
+    def _get_record_remaining_seconds(verification, interval_seconds: int) -> int:
+        """计算验证码记录距离指定时间间隔结束的剩余秒数"""
 
-        expires_at = verification.generated_at + timedelta(seconds=expire_seconds)
-        return max(0, math.ceil((expires_at - datetime.now()).total_seconds()))
+        interval_ends_at = verification.generated_at + timedelta(
+            seconds=interval_seconds
+        )
+        return max(0, math.ceil((interval_ends_at - datetime.now()).total_seconds()))
 
     @classmethod
     def get_verification(cls, email: str):
@@ -54,37 +53,61 @@ class EmailVerifications(BaseModel):
             return cls.get_or_none(cls.email == email)
 
     @classmethod
-    def issue_verification(cls, email: str, expire_seconds: int):
-        """为无有效验证码的邮箱签发新验证码"""
+    def issue_verification(cls, email: str, resend_interval_seconds: int):
+        """在重复发送等待时间结束后为邮箱签发新验证码"""
 
         email = (email or "").strip()
         if not email:
             raise ValueError("邮箱不能为空")
-        cls._validate_expire_seconds(expire_seconds)
+        cls._validate_seconds(
+            resend_interval_seconds,
+            "邮箱验证码重复发送等待时间",
+        )
 
         verification_code = cls.generate_code()
 
         with db.connection_context():
-            # 条件更新与主键插入共同保证并发请求中仅一方可以成功签发。
+            # 比对旧记录后再条件更新，保证并发请求中仅一方可以成功签发，
+            # 同时保留旧记录快照，供邮件发送失败时安全恢复。
             for _ in range(3):
                 generated_at = datetime.now()
-                expired_before = generated_at - timedelta(seconds=expire_seconds)
+                resend_before = generated_at - timedelta(
+                    seconds=resend_interval_seconds
+                )
+                previous_verification = cls.get_or_none(cls.email == email)
 
-                with db.atomic():
-                    updated_count = (
-                        cls.update(
-                            verification_code=verification_code,
-                            generated_at=generated_at,
-                            failed_attempts=0,
-                        )
-                        .where(
-                            (cls.email == email) & (cls.generated_at <= expired_before)
-                        )
-                        .execute()
+                if previous_verification:
+                    remaining_seconds = cls._get_record_remaining_seconds(
+                        previous_verification,
+                        resend_interval_seconds,
                     )
+                    if remaining_seconds > 0:
+                        return None, remaining_seconds, None
 
-                if updated_count:
-                    return cls.get_by_id(email), 0
+                    with db.atomic():
+                        updated_count = (
+                            cls.update(
+                                verification_code=verification_code,
+                                generated_at=generated_at,
+                            )
+                            .where(
+                                (cls.email == email)
+                                & (
+                                    cls.verification_code
+                                    == previous_verification.verification_code
+                                )
+                                & (
+                                    cls.generated_at
+                                    == previous_verification.generated_at
+                                )
+                                & (cls.generated_at <= resend_before)
+                            )
+                            .execute()
+                        )
+
+                    if updated_count:
+                        return cls.get_by_id(email), 0, previous_verification
+                    continue
 
                 try:
                     with db.atomic():
@@ -92,48 +115,32 @@ class EmailVerifications(BaseModel):
                             email=email,
                             verification_code=verification_code,
                             generated_at=generated_at,
-                            failed_attempts=0,
                         )
-                    return cls.get_by_id(email), 0
+                    return cls.get_by_id(email), 0, None
                 except IntegrityError:
-                    verification = cls.get_or_none(cls.email == email)
-                    if verification:
-                        remaining_seconds = cls._get_record_remaining_seconds(
-                            verification,
-                            expire_seconds,
-                        )
-                        if remaining_seconds > 0:
-                            return None, remaining_seconds
+                    continue
 
             raise RuntimeError("邮箱验证码签发失败，请稍后重试")
 
     @classmethod
-    def get_remaining_seconds(cls, email: str, expire_seconds: int) -> int:
-        """获取指定邮箱当前验证码的剩余有效秒数"""
+    def get_resend_remaining_seconds(
+        cls,
+        email: str,
+        resend_interval_seconds: int,
+    ) -> int:
+        """获取指定邮箱再次发送验证码前的剩余等待秒数"""
 
-        cls._validate_expire_seconds(expire_seconds)
-
-        for _ in range(3):
-            verification = cls.get_verification(email)
-            if not verification:
-                return 0
-
-            remaining_seconds = cls._get_record_remaining_seconds(
-                verification,
-                expire_seconds,
-            )
-            if remaining_seconds > 0:
-                return remaining_seconds
-
-            deleted_count = cls.delete_verification(
-                email,
-                verification.verification_code,
-                verification.generated_at,
-            )
-            if deleted_count:
-                return 0
-
-        return 0
+        cls._validate_seconds(
+            resend_interval_seconds,
+            "邮箱验证码重复发送等待时间",
+        )
+        verification = cls.get_verification(email)
+        if not verification:
+            return 0
+        return cls._get_record_remaining_seconds(
+            verification,
+            resend_interval_seconds,
+        )
 
     @classmethod
     def verify_code(
@@ -141,16 +148,12 @@ class EmailVerifications(BaseModel):
         email: str,
         verification_code: str,
         expire_seconds: int,
-        max_attempts: int,
     ):
         """校验验证码，并在成功或过期时消费对应记录"""
 
         email = (email or "").strip()
         verification_code = (verification_code or "").strip()
-        cls._validate_expire_seconds(expire_seconds)
-        if not isinstance(max_attempts, int) or max_attempts <= 0:
-            raise ValueError("邮箱验证码最大错误校验次数必须为正整数")
-
+        cls._validate_seconds(expire_seconds, "邮箱验证码有效期")
         with db.connection_context():
             for _ in range(3):
                 verification = cls.get_or_none(cls.email == email)
@@ -171,31 +174,10 @@ class EmailVerifications(BaseModel):
                         return "expired"
                     continue
 
-                if verification.failed_attempts >= max_attempts:
-                    return "too_many_attempts"
-
                 if not secrets.compare_digest(
                     verification.verification_code,
                     verification_code,
                 ):
-                    updated_count = (
-                        cls.update(failed_attempts=cls.failed_attempts + 1)
-                        .where(
-                            (cls.email == email)
-                            & (cls.verification_code == verification.verification_code)
-                            & (cls.generated_at == verification.generated_at)
-                        )
-                        .execute()
-                    )
-                    if not updated_count:
-                        continue
-
-                    latest_verification = cls.get_or_none(cls.email == email)
-                    if (
-                        latest_verification
-                        and latest_verification.failed_attempts >= max_attempts
-                    ):
-                        return "too_many_attempts"
                     return "invalid"
 
                 deleted_count = cls.delete_verification(
@@ -207,6 +189,27 @@ class EmailVerifications(BaseModel):
                     return "valid"
 
             return "invalid"
+
+    @classmethod
+    def rollback_issued_verification(cls, verification, previous_verification=None):
+        """邮件发送失败时回滚本次签发，且不覆盖并发产生的新记录"""
+
+        with db.connection_context():
+            current_record_filter = (
+                (cls.email == verification.email)
+                & (cls.verification_code == verification.verification_code)
+                & (cls.generated_at == verification.generated_at)
+            )
+            if previous_verification:
+                return (
+                    cls.update(
+                        verification_code=previous_verification.verification_code,
+                        generated_at=previous_verification.generated_at,
+                    )
+                    .where(current_record_filter)
+                    .execute()
+                )
+            return cls.delete().where(current_record_filter).execute()
 
     @classmethod
     def delete_verification(
