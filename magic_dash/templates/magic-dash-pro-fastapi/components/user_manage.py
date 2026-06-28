@@ -10,6 +10,7 @@ from werkzeug.security import generate_password_hash
 from server import app
 from models.users import Users
 from models.departments import Departments
+from models.exceptions import ExistingUserError
 
 from configs import AuthConfig
 from utils.validation_utils import validate_optional_email
@@ -43,20 +44,60 @@ def refresh_user_manage_table_data():
                     "gold" if item["user_role"] == AuthConfig.admin_role else "blue"
                 ),
             },
-            "操作": {
-                "content": "删除",
-                "type": "link",
-                "danger": True,
-                "disabled": item["user_role"] == AuthConfig.admin_role,
-                "popConfirmProps": {
-                    "title": "确认删除当前用户",
-                    "okText": "确认",
-                    "cancelText": "取消",
-                },
-            },
+            "操作": (
+                (
+                    [
+                        {
+                            "content": "编辑",
+                            "type": "link",
+                        }
+                    ]
+                    if item["user_role"] != AuthConfig.admin_role
+                    else []
+                )
+                + [
+                    {
+                        "content": "删除",
+                        "type": "link",
+                        "danger": True,
+                        "disabled": item["user_role"] == AuthConfig.admin_role,
+                        "popConfirmProps": {
+                            "title": "确认删除当前用户",
+                            "okText": "确认",
+                            "cancelText": "取消",
+                        },
+                    }
+                ]
+            ),
         }
         for item in all_users
     ]
+
+
+def check_department_id_valid(department_id):
+    """检查部门id是否为空或对应有效部门"""
+
+    if department_id in [None, ""]:
+        return True
+
+    if not isinstance(department_id, str):
+        return False
+
+    return Departments.get_department(department_id) is not None
+
+
+def show_user_manage_error(content):
+    """显示用户管理错误提示"""
+
+    set_props(
+        "global-message",
+        {
+            "children": fac.AntdMessage(
+                type="error",
+                content=content,
+            )
+        },
+    )
 
 
 @app.callback(
@@ -80,6 +121,16 @@ def render_user_manage_drawer(visible):
                     id="user-manage-add-user-modal",
                     title=fac.AntdSpace(
                         [fac.AntdIcon(icon="antd-user-add"), "新增用户"]
+                    ),
+                    mask=False,
+                    renderFooter=True,
+                    okClickClose=False,
+                ),
+                # 编辑用户模态框
+                fac.AntdModal(
+                    id="user-manage-edit-user-modal",
+                    title=fac.AntdSpace(
+                        [fac.AntdIcon(icon="antd-edit"), "编辑用户"]
                     ),
                     mask=False,
                     renderFooter=True,
@@ -351,6 +402,78 @@ def handle_add_user(okCounts, values):
             )
 
 
+def build_edit_user_form(match_user):
+    """构建编辑用户表单"""
+
+    # 查询当前全部部门信息
+    departments = Departments.get_all_departments()
+
+    return fac.AntdForm(
+        [
+            fac.AntdFormItem(
+                fac.AntdInput(
+                    id="user-manage-edit-user-form-user-id",
+                    readOnly=True,
+                ),
+                label="用户id",
+            ),
+            fac.AntdFormItem(
+                fac.AntdInput(
+                    id="user-manage-edit-user-form-user-name",
+                    readOnly=True,
+                ),
+                label="用户名",
+            ),
+            fac.AntdFormItem(
+                fac.AntdInput(
+                    id="user-manage-edit-user-form-user-email",
+                    placeholder="请输入邮箱",
+                    allowClear=True,
+                ),
+                label="邮箱",
+            ),
+            fac.AntdFormItem(
+                fac.AntdSelect(
+                    id="user-manage-edit-user-form-department-id",
+                    options=[
+                        {
+                            "label": item["department_name"],
+                            "value": item["department_id"],
+                        }
+                        for item in departments
+                    ],
+                    placeholder="请选择所属部门",
+                    allowClear=True,
+                ),
+                label="所属部门",
+            ),
+            fac.AntdFormItem(
+                fac.AntdSelect(
+                    id="user-manage-edit-user-form-user-role",
+                    options=[
+                        {"label": value["description"], "value": key}
+                        for key, value in AuthConfig.roles.items()
+                    ],
+                    allowClear=False,
+                ),
+                label="用户角色",
+            ),
+        ],
+        id="user-manage-edit-user-form",
+        key=str(uuid.uuid4()),  # 强制刷新
+        enableBatchControl=True,
+        layout="vertical",
+        values={
+            "user-manage-edit-user-form-user-id": match_user.user_id,
+            "user-manage-edit-user-form-user-name": match_user.user_name,
+            "user-manage-edit-user-form-user-email": match_user.user_email or "",
+            "user-manage-edit-user-form-department-id": match_user.department_id,
+            "user-manage-edit-user-form-user-role": match_user.user_role,
+        },
+        style=style(marginTop=32),
+    )
+
+
 @app.callback(
     Input("user-manage-table", "nClicksButton"),
     [
@@ -359,12 +482,40 @@ def handle_add_user(okCounts, values):
     ],
     prevent_initial_call=True,
 )
-def handle_user_delete(nClicksButton, clickedContent, recentlyButtonClickedRow):
-    """处理用户删除逻辑"""
+def handle_user_action(nClicksButton, clickedContent, recentlyButtonClickedRow):
+    """处理用户表格操作逻辑"""
 
-    if clickedContent == "删除":
+    if clickedContent not in ["编辑", "删除"]:
+        return
+
+    user_id = (recentlyButtonClickedRow or {}).get("user_id")
+
+    if not isinstance(user_id, str):
+        show_user_manage_error("用户信息不正确")
+        return
+
+    match_user = Users.get_user(user_id)
+
+    if not match_user:
+        show_user_manage_error("用户不存在或已被删除")
+        return
+
+    if match_user.user_role == AuthConfig.admin_role:
+        show_user_manage_error("管理员用户不允许删除或编辑")
+        return
+
+    if clickedContent == "编辑":
+        set_props(
+            "user-manage-edit-user-modal",
+            {
+                "visible": True,
+                "children": build_edit_user_form(match_user),
+            },
+        )
+
+    elif clickedContent == "删除":
         # 删除用户
-        Users.delete_user(user_id=recentlyButtonClickedRow["user_id"])
+        Users.delete_user(user_id=match_user.user_id)
 
         set_props(
             "global-message",
@@ -381,3 +532,94 @@ def handle_user_delete(nClicksButton, clickedContent, recentlyButtonClickedRow):
             "user-manage-table",
             {"data": refresh_user_manage_table_data()},
         )
+
+
+@app.callback(
+    Input("user-manage-edit-user-modal", "okCounts"),
+    State("user-manage-edit-user-form", "values"),
+    prevent_initial_call=True,
+)
+def handle_edit_user(okCounts, values):
+    """处理编辑用户逻辑"""
+
+    # 获取表单数据
+    values = values or {}
+
+    user_id = values.get("user-manage-edit-user-form-user-id")
+    user_role = values.get("user-manage-edit-user-form-user-role")
+    department_id = values.get("user-manage-edit-user-form-department-id")
+
+    # 检查表单数据完整性
+    if not (user_id and user_role):
+        show_user_manage_error("请完善用户信息后再提交")
+        return
+
+    if not isinstance(user_id, str):
+        show_user_manage_error("用户信息不正确")
+        return
+
+    user_email = values.get("user-manage-edit-user-form-user-email") or ""
+    if not isinstance(user_email, str):
+        show_user_manage_error("邮箱格式不正确")
+        return
+
+    user_email = user_email.strip()
+
+    if not validate_optional_email(user_email):
+        show_user_manage_error("邮箱格式不正确")
+        return
+
+    if not isinstance(user_role, str) or user_role not in AuthConfig.roles:
+        show_user_manage_error("用户角色不正确")
+        return
+
+    if not check_department_id_valid(department_id):
+        show_user_manage_error("所属部门不存在或已被删除")
+        return
+    department_id = department_id or None
+
+    match_user = Users.get_user(user_id)
+    match_email_user = Users.get_user_by_email(user_email)
+
+    if not match_user:
+        show_user_manage_error("用户不存在或已被删除")
+        return
+
+    if match_user.user_role == AuthConfig.admin_role:
+        show_user_manage_error("管理员用户不允许删除或编辑")
+        return
+
+    # 若非空邮箱已被其他用户使用
+    if match_email_user and match_email_user.user_id != user_id:
+        show_user_manage_error("邮箱已被其他用户使用")
+        return
+
+    # 更新用户
+    try:
+        Users.update_user(
+            user_id=user_id,
+            user_email=user_email or None,
+            department_id=department_id,
+            user_role=user_role,
+        )
+    except ExistingUserError as e:
+        show_user_manage_error(str(e))
+        return
+
+    set_props(
+        "global-message",
+        {
+            "children": fac.AntdMessage(
+                type="success",
+                content="用户信息更新成功",
+            )
+        },
+    )
+
+    set_props("user-manage-edit-user-modal", {"visible": False})
+
+    # 刷新用户列表
+    set_props(
+        "user-manage-table",
+        {"data": refresh_user_manage_table_data()},
+    )
