@@ -12,6 +12,22 @@ from server import app
 from models.logs import LoginLogs
 
 
+def get_login_status_tag_color(status: str):
+    """根据登录状态映射标签颜色"""
+
+    if status in {"登录成功", "邮箱登录成功", "OTP登录成功"}:
+        return "green"
+
+    if status in {
+        "验证码已过期，请重新获取",
+        "尝试次数过多，请稍后再试",
+        "动态口令已失效，请等待下一组口令",
+    }:
+        return "orange"
+
+    return "red"
+
+
 @app.callback(
     Output("core-login-logs-table", "data"),
     [
@@ -50,7 +66,7 @@ def handle_login_logs_table_data_load(timeoutCount, pagination, sorter, _filter)
             **item,
             "status": {
                 "tag": item["status"],
-                "color": "green" if item["status"] == "登录成功" else "red",
+                "color": get_login_status_tag_color(item["status"]),
             },
             "login_datetime": item["login_datetime"].strftime("%Y-%m-%d %H:%M:%S"),
             "key": item["id"],

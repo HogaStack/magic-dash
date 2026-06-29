@@ -11,11 +11,13 @@ from dash.dependencies import Input, Output, State, ClientsideFunction
 
 from server import app, User, login_current_user, request
 from models.users import Users
-from configs import BaseConfig, EmailConfig
+from configs import BaseConfig, EmailConfig, OtpConfig
 from models.email_verifications import EmailVerifications
 from models.logs import LoginLogs
+from models.otp_credentials import OtpCredentials
 from utils.crypto_utils import restore_login_password
 from utils.email_utils import send_email_verification_code
+from utils.otp_utils import decrypt_otp_secret, verify_otp_code
 from utils.validation_utils import validate_optional_email
 
 
@@ -310,6 +312,72 @@ def render_more_login_modal(nClicks, clickedKey):
                     ],
                     title=fac.AntdSpace(
                         [fac.AntdIcon(icon="antd-mail"), "邮箱验证登录"]
+                    ),
+                    visible=True,
+                    renderFooter=False,
+                    width=480,
+                    centered=True,
+                ),
+            },
+        )
+
+    elif BaseConfig.enable_otp_login and clickedKey == "otp":
+        set_props(
+            "login-more-options-modal-target",
+            {
+                "key": str(uuid.uuid4()),  # 强制刷新
+                "children": fac.AntdModal(
+                    [
+                        fac.AntdForm(
+                            [
+                                # 用户名
+                                fac.AntdFormItem(
+                                    fac.AntdInput(
+                                        id="login-user-otp-name",
+                                        placeholder="请输入用户名",
+                                        size="large",
+                                        prefix=fac.AntdIcon(
+                                            icon="antd-user",
+                                            className="global-help-text",
+                                        ),
+                                        autoComplete="off",
+                                    ),
+                                    id="login-user-otp-name-form-item",
+                                    label="用户名",
+                                    style=style(marginBottom=18),
+                                ),
+                                # 6位动态口令
+                                fac.AntdFormItem(
+                                    fac.AntdCenter(
+                                        fac.AntdOTP(
+                                            id="login-user-otp-code",
+                                            size="large",
+                                            length=6,
+                                        )
+                                    ),
+                                    id="login-user-otp-code-form-item",
+                                    label="6位动态口令",
+                                    style=style(marginBottom=12),
+                                ),
+                                fac.AntdButton(
+                                    "登录",
+                                    id="login-user-otp-submit",
+                                    type="primary",
+                                    block=True,
+                                    size="large",
+                                    autoSpin=True,
+                                    style=style(marginTop=24),
+                                ),
+                            ],
+                            layout="vertical",
+                            style=style(paddingTop=8),
+                        )
+                    ],
+                    title=fac.AntdSpace(
+                        [
+                            fac.AntdIcon(icon="antd-safety-certificate"),
+                            "OTP动态口令登录",
+                        ]
                     ),
                     visible=True,
                     renderFooter=False,
@@ -693,5 +761,161 @@ def handle_login_user_email_submit(nClicks, email, verification_code):
         ),
         os="{} {}".format(user_agent.os.family, user_agent.os.version_string),
         status="邮箱登录成功",
+        login_datetime=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    )
+
+
+@app.callback(
+    Input("login-user-otp-submit", "nClicks"),
+    [
+        State("login-user-otp-name", "value"),
+        State("login-user-otp-code", "value"),
+    ],
+    prevent_initial_call=True,
+)
+def handle_login_user_otp_submit(nClicks, user_name, otp_code):
+    """处理OTP动态口令校验及登录逻辑"""
+
+    if not BaseConfig.enable_otp_login:
+        # 提前终止当前无输出回调
+        return
+
+    user_name = (user_name or "").strip()
+    otp_code = str(otp_code or "").strip()
+
+    if not user_name:
+        set_props(
+            "login-user-otp-name-form-item",
+            {"help": "请输入用户名", "validateStatus": "error"},
+        )
+        set_props("login-user-otp-submit", {"loading": False})
+        return
+
+    if len(otp_code) != 6 or not otp_code.isdigit():
+        set_props(
+            "login-user-otp-code-form-item",
+            {"help": "请输入6位数字动态口令", "validateStatus": "error"},
+        )
+        set_props("login-user-otp-submit", {"loading": False})
+        return
+
+    user_agent = parse(str(request.user_agent))
+    browser_info = "{} {}".format(
+        user_agent.browser.family,
+        user_agent.browser.version_string,
+    )
+    os_info = "{} {}".format(user_agent.os.family, user_agent.os.version_string)
+
+    def reject_login(match_user=None, message="用户名或动态口令错误"):
+        """统一处理OTP登录失败反馈与日志"""
+
+        set_props(
+            "login-user-otp-code-form-item",
+            {"help": message, "validateStatus": "error"},
+        )
+        set_props(
+            "global-message",
+            {
+                "children": fac.AntdMessage(
+                    type="error",
+                    content=message,
+                )
+            },
+        )
+        set_props("login-user-otp-submit", {"loading": False})
+
+        LoginLogs.add_log(
+            user_name=match_user.user_name if match_user else user_name,
+            user_id=match_user.user_id if match_user else None,
+            ip=request.remote_addr,
+            browser=browser_info,
+            os=os_info,
+            status=message,
+            login_datetime=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        )
+
+    try:
+        match_user = Users.get_user_by_name(user_name)
+    except Exception:
+        app.server.logger.exception("OTP登录用户信息查询失败")
+        set_props(
+            "global-message",
+            {
+                "children": fac.AntdMessage(
+                    type="error",
+                    content="用户信息查询失败，请稍后重试",
+                )
+            },
+        )
+        set_props("login-user-otp-submit", {"loading": False})
+        return
+
+    if not match_user:
+        reject_login()
+        return
+
+    credential = OtpCredentials.get_credential(match_user.user_id)
+
+    if not credential or not credential.is_enabled:
+        reject_login(match_user)
+        return
+
+    if OtpCredentials.is_locked(credential):
+        reject_login(match_user, "尝试次数过多，请稍后再试")
+        return
+
+    try:
+        otp_secret = decrypt_otp_secret(credential.secret_ciphertext)
+        is_valid, timecode = verify_otp_code(otp_secret, otp_code)
+    except Exception:
+        app.server.logger.exception("OTP动态口令校验失败")
+        set_props(
+            "global-message",
+            {
+                "children": fac.AntdMessage(
+                    type="error",
+                    content="OTP动态口令服务异常，请稍后重试",
+                )
+            },
+        )
+        set_props("login-user-otp-submit", {"loading": False})
+        return
+
+    if not is_valid:
+        OtpCredentials.record_failed_attempt(
+            match_user.user_id,
+            OtpConfig.max_failed_attempts,
+            OtpConfig.lockout_seconds,
+        )
+        reject_login(match_user)
+        return
+
+    if (
+        credential.last_used_timecode is not None
+        and timecode <= credential.last_used_timecode
+    ):
+        OtpCredentials.record_failed_attempt(
+            match_user.user_id,
+            OtpConfig.max_failed_attempts,
+            OtpConfig.lockout_seconds,
+        )
+        reject_login(match_user, "动态口令已失效，请等待下一组口令")
+        return
+
+    OtpCredentials.mark_used(match_user.user_id, timecode)
+    set_props(
+        "login-user-otp-code-form-item",
+        {"help": None, "validateStatus": "success"},
+    )
+    set_props("login-user-otp-submit", {"loading": False})
+    complete_user_login(match_user)
+
+    LoginLogs.add_log(
+        user_name=match_user.user_name,
+        user_id=match_user.user_id,
+        ip=request.remote_addr,
+        browser=browser_info,
+        os=os_info,
+        status="OTP登录成功",
         login_datetime=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     )

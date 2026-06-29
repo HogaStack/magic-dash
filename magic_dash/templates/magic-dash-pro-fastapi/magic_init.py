@@ -14,6 +14,7 @@ from configs import AuthConfig, BaseConfig
 from models import db
 from models.departments import Departments
 from models.email_verifications import EmailVerifications
+from models.otp_credentials import OtpCredentials
 from models.users import Users
 from utils.validation_utils import validate_optional_email
 
@@ -175,7 +176,7 @@ def main():
     admin_email = None
 
     # 创建表（如果表不存在）
-    db.create_tables([Users, Departments, EmailVerifications])
+    db.create_tables([Users, Departments, EmailVerifications, OtpCredentials])
 
     # 兼容旧版本已存在的用户信息表
     for operation in ensure_user_email_schema():

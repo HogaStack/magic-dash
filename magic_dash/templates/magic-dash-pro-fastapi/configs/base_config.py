@@ -78,3 +78,6 @@ class BaseConfig:
 
     # 针对用户登录页面，是否启用邮箱登录功能
     enable_email_login: bool = False
+
+    # 针对用户登录页面，是否启用OTP动态口令登录功能
+    enable_otp_login: bool = False

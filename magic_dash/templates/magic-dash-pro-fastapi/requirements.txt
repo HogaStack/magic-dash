@@ -9,5 +9,6 @@ user_agents
 Werkzeug
 yarl
 cryptography
+pyotp
 questionary
 rich

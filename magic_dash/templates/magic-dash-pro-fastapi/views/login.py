@@ -107,6 +107,8 @@ def render():
     more_login_options = []
     if BaseConfig.enable_email_login:
         more_login_options.append({"title": "邮箱验证登录", "key": "email"})
+    if BaseConfig.enable_otp_login:
+        more_login_options.append({"title": "OTP动态口令登录", "key": "otp"})
 
     # 登录控件区：在居中布局中由AntdCenter承担玻璃拟态容器样式
     login_form = fac.AntdCenter(

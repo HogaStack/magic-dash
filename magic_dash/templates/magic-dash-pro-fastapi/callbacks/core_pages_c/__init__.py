@@ -6,6 +6,7 @@ from dash.dependencies import Input, Output, State, ClientsideFunction
 from server import app
 from views.status_pages import _404
 from components import page_content  # 页面内容渲染
+from components.otp_binding import build_otp_binding_content
 
 # 路由配置参数
 from configs import RouterConfig
@@ -59,10 +60,16 @@ app.clientside_callback(
     State("core-pages-header-user-dropdown", "clickedKey"),
 )
 def open_user_manage_drawer(nClicks, clickedKey):
-    """打开个人信息、用户管理面板"""
+    """打开个人信息、OTP绑定、用户管理面板"""
 
     if clickedKey == "个人信息":
         set_props("personal-info-modal", {"visible": True, "loading": True})
+
+    elif clickedKey == "OTP绑定":
+        set_props(
+            "otp-binding-modal",
+            {"visible": True, "children": build_otp_binding_content()},
+        )
 
     elif clickedKey == "用户管理":
         set_props("user-manage-drawer", {"visible": True, "loading": True})
