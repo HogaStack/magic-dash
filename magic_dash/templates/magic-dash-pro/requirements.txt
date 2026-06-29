@@ -10,5 +10,6 @@ flask-compress
 flask-principal
 yarl
 cryptography
+pyotp
 questionary
 rich

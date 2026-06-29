@@ -143,6 +143,12 @@ class Users(BaseModel):
 
         with db.connection_context():
             with db.atomic():
+                from .otp_credentials import OtpCredentials
+
+                if OtpCredentials.table_exists():
+                    OtpCredentials.delete().where(
+                        OtpCredentials.user_id == user_id
+                    ).execute()
                 cls.delete().where(cls.user_id == user_id).execute()
 
     @classmethod
@@ -153,6 +159,10 @@ class Users(BaseModel):
         if execute:
             with db.connection_context():
                 with db.atomic():
+                    from .otp_credentials import OtpCredentials
+
+                    if OtpCredentials.table_exists():
+                        OtpCredentials.delete().execute()
                     cls.delete().execute()
 
     @classmethod

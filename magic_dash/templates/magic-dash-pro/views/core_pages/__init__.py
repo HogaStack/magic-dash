@@ -10,6 +10,7 @@ from views.core_pages import independent_page_demo, independent_wildcard_page_de
 from components import (
     core_side_menu,
     personal_info,
+    otp_binding,
     user_manage,
     department_manage,
     version_changelog_modal,
@@ -120,6 +121,8 @@ def render(current_user_access_rule: str, current_pathname: str = None):
             ),
             # 注入个人信息模态框
             personal_info.render(),
+            # 注入OTP绑定模态框
+            otp_binding.render(),
             # 若当前用户角色为系统管理员
             *(
                 # 注入用户管理抽屉
@@ -349,6 +352,16 @@ def render(current_user_access_rule: str, current_pathname: str = None):
                                                     "title": "个人信息",
                                                     "key": "个人信息",
                                                 },
+                                                *(
+                                                    [
+                                                        {
+                                                            "title": "OTP绑定",
+                                                            "key": "OTP绑定",
+                                                        }
+                                                    ]
+                                                    if BaseConfig.enable_otp_login
+                                                    else []
+                                                ),
                                                 # 若当前用户角色为系统管理员
                                                 *(
                                                     [
