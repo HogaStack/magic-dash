@@ -19,6 +19,9 @@ def get_login_status_tag_color(status: str):
         return "green"
 
     if status in {
+        "验证码过期",
+        "OTP锁定",
+        "OTP口令失效",
         "验证码已过期，请重新获取",
         "尝试次数过多，请稍后再试",
         "动态口令已失效，请等待下一组口令",

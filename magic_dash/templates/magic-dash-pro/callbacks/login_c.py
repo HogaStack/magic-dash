@@ -714,9 +714,15 @@ def handle_login_user_email_submit(nClicks, email, verification_code):
         "expired": "验证码已过期，请重新获取",
         "invalid": "邮箱或验证码错误",
     }
+    verify_result_log_statuses = {
+        "not_found": "邮箱验证失败",
+        "expired": "验证码过期",
+        "invalid": "邮箱验证失败",
+    }
 
     if verify_result != "valid":
         error_message = verify_result_messages.get(verify_result, "验证码校验失败")
+        log_status = verify_result_log_statuses.get(verify_result, "邮箱验证失败")
         set_props(
             "login-user-email-captcha-form-item",
             {"help": error_message, "validateStatus": "error"},
@@ -742,7 +748,7 @@ def handle_login_user_email_submit(nClicks, email, verification_code):
                 user_agent.browser.version_string,
             ),
             os="{} {}".format(user_agent.os.family, user_agent.os.version_string),
-            status=error_message,
+            status=log_status,
             login_datetime=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         )
         # 提前终止当前无输出回调
@@ -811,7 +817,11 @@ def handle_login_user_otp_submit(nClicks, user_name, otp_code):
     )
     os_info = "{} {}".format(user_agent.os.family, user_agent.os.version_string)
 
-    def reject_login(match_user=None, message="用户名或动态口令错误"):
+    def reject_login(
+        match_user=None,
+        message="用户名或动态口令错误",
+        log_status="OTP验证失败",
+    ):
         """统一处理OTP登录失败反馈与日志"""
 
         set_props(
@@ -835,7 +845,7 @@ def handle_login_user_otp_submit(nClicks, user_name, otp_code):
             ip=request.remote_addr,
             browser=browser_info,
             os=os_info,
-            status=message,
+            status=log_status,
             login_datetime=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         )
 
@@ -866,7 +876,7 @@ def handle_login_user_otp_submit(nClicks, user_name, otp_code):
         return
 
     if OtpCredentials.is_locked(credential):
-        reject_login(match_user, "尝试次数过多，请稍后再试")
+        reject_login(match_user, "尝试次数过多，请稍后再试", "OTP锁定")
         return
 
     try:
@@ -904,7 +914,7 @@ def handle_login_user_otp_submit(nClicks, user_name, otp_code):
             OtpConfig.max_failed_attempts,
             OtpConfig.lockout_seconds,
         )
-        reject_login(match_user, "动态口令已失效，请等待下一组口令")
+        reject_login(match_user, "动态口令已失效，请等待下一组口令", "OTP口令失效")
         return
 
     OtpCredentials.mark_used(match_user.user_id, timecode)
