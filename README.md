@@ -94,7 +94,7 @@ magic-dash remove-assets
 | --- | --- | --- |
 | `simple-tool` | 单页面数据工具、计算器、内部小工具原型 | [项目创建](./docs/simple-tool/项目创建.md) / [二次开发指南](./docs/simple-tool/二次开发指南.md) |
 | `magic-dash` | 适用于多页面、持续扩展的[Dash](https://github.com/plotly/dash)应用，内置侧边菜单、路由、状态页和页面组织规范 | [项目创建](./docs/magic-dash/项目创建.md) / [配置参数](./docs/magic-dash/配置参数.md) / [二次开发指南](./docs/magic-dash/二次开发指南.md) |
-| `magic-dash-pro` | 适用于多页面、持续扩展的管理型[Dash](https://github.com/plotly/dash)应用，支持复杂用户与部门关系、用户名密码及邮件验证码登录、管理和鉴权能力 | [项目创建](./docs/magic-dash-pro/项目创建.md) / [配置参数](./docs/magic-dash-pro/配置参数.md) / [二次开发指南](./docs/magic-dash-pro/二次开发指南.md) |
+| `magic-dash-pro` | 适用于多页面、持续扩展的管理型[Dash](https://github.com/plotly/dash)应用，支持复杂用户与部门关系、用户名密码、邮件验证码及`OTP`动态口令登录、管理和鉴权能力 | [项目创建](./docs/magic-dash-pro/项目创建.md) / [配置参数](./docs/magic-dash-pro/配置参数.md) / [二次开发指南](./docs/magic-dash-pro/二次开发指南.md) |
 
 ## 3 反馈和社区
 

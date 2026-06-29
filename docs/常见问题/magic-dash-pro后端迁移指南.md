@@ -34,6 +34,8 @@ magic-dash create --name magic-dash-pro --backend fastapi
 
 如果项目启用了邮件验证码登录，还应以新模板中的`configs/email_config.py`、`models/email_verifications.py`和`utils/email_utils.py`为基准。两种后端的邮件配置和验证码模型一致，但登录会话的建立仍由各自的`callbacks/login_c.py`完成，因此不应直接用`Flask`版本覆盖`FastAPI`版本。
 
+如果项目启用了`OTP`动态口令登录，还应同步迁移`configs/otp_config.py`、`models/otp_credentials.py`、`utils/otp_utils.py`和`components/otp_binding.py`。`OTP`凭据模型和配置在两种后端中保持一致，但登录会话写入和当前用户访问仍依赖各自后端模板，应以目标`FastAPI`项目的`callbacks/login_c.py`和`views/core_pages/__init__.py`为基准合并业务改动。
+
 ## 依赖调整
 
 `Flask`后端常见依赖：
@@ -420,5 +422,6 @@ uvicorn app:app.server --host 0.0.0.0 --port 8050 --workers 4
 - 原`before_request`逻辑已改写为`FastAPI`中间件。
 - 原`g`、`session`上下文依赖已迁移到`request.state`、数据库、缓存或前端状态。
 - 如启用邮件验证码登录，已迁移`EmailConfig`中的`SMTP`配置，并确认用户邮箱保持唯一。
-- 已在目标项目运行`python -m magic_init`，创建或升级用户邮箱和邮件验证码相关表结构。
+- 如启用`OTP`动态口令登录，已迁移`OtpConfig`、`OtpCredentials`和`otp_utils`相关实现，并确认用户菜单中的“OTP绑定”入口按配置显示。
+- 已在目标项目运行`python -m magic_init`，创建或升级用户邮箱、邮件验证码和`OTP`凭据相关表结构。
 - 部署命令已切换为`uvicorn app:app.server --host 0.0.0.0 --port 8050 --workers 4`。
