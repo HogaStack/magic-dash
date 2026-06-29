@@ -7,6 +7,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from rich.console import Console
 from rich.panel import Panel
+from rich.table import Table
 from rich.text import Text
 from werkzeug.security import generate_password_hash
 
@@ -20,6 +21,13 @@ from utils.validation_utils import validate_optional_email
 
 # 创建rich console实例
 console = Console()
+
+BUILTIN_DATABASE_TABLES = [
+    ("用户信息表", Users, "用户账号、角色、部门归属与登录会话"),
+    ("部门信息表", Departments, "组织部门层级与扩展信息"),
+    ("邮箱验证码信息表", EmailVerifications, "邮箱登录/绑定验证码记录"),
+    ("用户OTP动态口令凭据表", OtpCredentials, "用户TOTP二次验证凭据"),
+]
 
 
 def generate_rsa_key_pair():
@@ -74,6 +82,61 @@ def check_table_has_data(table_model):
 
     with db.connection_context():
         return table_model.select().count() > 0
+
+
+def get_builtin_table_creation_records(table_exists_map):
+    """获取内置数据表创建记录。"""
+
+    return [
+        {
+            "label": label,
+            "table_name": table_model._meta.table_name,
+            "description": description,
+            "created": not table_exists_map[table_model],
+        }
+        for label, table_model, description in BUILTIN_DATABASE_TABLES
+    ]
+
+
+def print_builtin_table_creation_records(table_creation_records):
+    """打印内置数据表创建记录清单。"""
+
+    table = Table(
+        show_header=True,
+        header_style="bold cyan",
+        border_style="bright_blue",
+        expand=True,
+    )
+    table.add_column("序号", justify="right", style="dim", no_wrap=True, width=4)
+    table.add_column("内置数据表", style="yellow", no_wrap=True)
+    table.add_column("物理表名", style="cyan", no_wrap=True)
+    table.add_column("创建记录", no_wrap=True)
+    table.add_column("用途", style="dim")
+
+    for index, record in enumerate(table_creation_records, 1):
+        status = (
+            "[green]已创建[/green]"
+            if record["created"]
+            else "[dim]已存在，跳过创建[/dim]"
+        )
+        table.add_row(
+            str(index),
+            record["label"],
+            record["table_name"],
+            status,
+            record["description"],
+        )
+
+    console.print("\n")
+    console.print(
+        Panel(
+            table,
+            title="[bold cyan]内置数据表创建记录[/bold cyan]",
+            subtitle="[dim]magic_init[/dim]",
+            border_style="bright_blue",
+            padding=(1, 2),
+        )
+    )
 
 
 def ensure_user_email_schema():
@@ -166,9 +229,13 @@ def main():
         Panel(title, subtitle=subtitle, border_style="bright_blue", padding=(1, 2))
     )
 
-    # 预先检查部门和用户表是否已存在
-    departments_exists = check_table_exists(Departments)
-    users_exists = check_table_exists(Users)
+    # 预先检查内置数据表是否已存在
+    table_exists_map = {
+        table_model: check_table_exists(table_model)
+        for _, table_model, _ in BUILTIN_DATABASE_TABLES
+    }
+    departments_exists = table_exists_map[Departments]
+    users_exists = table_exists_map[Users]
 
     # 记录执行结果和管理员信息
     executed_operations = []
@@ -176,7 +243,10 @@ def main():
     admin_email = None
 
     # 创建表（如果表不存在）
-    db.create_tables([Users, Departments, EmailVerifications, OtpCredentials])
+    db.create_tables([table_model for _, table_model, _ in BUILTIN_DATABASE_TABLES])
+    print_builtin_table_creation_records(
+        get_builtin_table_creation_records(table_exists_map)
+    )
 
     # 兼容旧版本已存在的用户信息表
     for operation in ensure_user_email_schema():
