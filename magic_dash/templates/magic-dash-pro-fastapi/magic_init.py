@@ -111,7 +111,6 @@ def print_builtin_table_creation_records(table_creation_records):
     table.add_column("内置数据表", style="yellow", no_wrap=True)
     table.add_column("物理表名", style="cyan", no_wrap=True)
     table.add_column("创建记录", no_wrap=True)
-    table.add_column("用途", style="dim")
 
     for index, record in enumerate(table_creation_records, 1):
         status = (
@@ -124,7 +123,6 @@ def print_builtin_table_creation_records(table_creation_records):
             record["label"],
             record["table_name"],
             status,
-            record["description"],
         )
 
     console.print("\n")
