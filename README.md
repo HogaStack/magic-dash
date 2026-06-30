@@ -50,6 +50,14 @@ magic-dash list
 ### 以magic-dash模板为例创建项目
 
 ```bash
+magic-dash create
+```
+
+命令会先通过交互式菜单选择内置模板和后端类型，选择`magic-dash`模板和`FastAPI`后端后，会继续提示输入项目名称。项目名称直接回车时，默认生成名为`magic-dash`的项目目录。
+
+也可以通过参数直接指定模板和后端类型：
+
+```bash
 magic-dash create --name magic-dash --backend fastapi
 ```
 
@@ -58,8 +66,6 @@ magic-dash create --name magic-dash --backend fastapi
 ```bash
 magic-dash create -n magic-dash -b fastapi
 ```
-
-也可以省略`--backend`或`-b`，通过交互式菜单选择后端类型。随后命令会继续提示输入项目名称，直接回车时，默认生成名为`magic-dash`的项目目录。
 
 ### 进入已创建项目，安装依赖并启动应用
 
