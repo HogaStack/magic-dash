@@ -10,7 +10,7 @@ from feffery_dash_utils.version_utils import (
 )
 
 # 检查Python版本
-check_python_version(min_version="3.8", max_version="3.14")
+check_python_version(min_version="3.9", max_version="3.14")
 # 检查关键依赖库版本
 check_dependencies_version(
     requirements_file="./requirements.txt",

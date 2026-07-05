@@ -28,7 +28,7 @@ setup(
         "Framework :: Dash",
     ],
     url="https://github.com/HogaStack/magic-dash",
-    python_requires=">=3.8, <3.15",
+    python_requires=">=3.9, <3.15",
     install_requires=["click", "rich", "questionary", "dash>=4.2.0,<5.0.0"],
     entry_points={
         "console_scripts": [

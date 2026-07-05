@@ -5,7 +5,7 @@
 <h1 align="center">magic-dash</h1>
 
 <p align="center">
-  <a href="./setup.py"><img src="https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue" alt="Python" /></a>
+  <a href="./setup.py"><img src="https://img.shields.io/badge/python-3.9%20%7C%203.10%20%7C%203.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue" alt="Python" /></a>
   <a href="./LICENSE"><img src="https://shields.io/badge/license-MIT-informational" alt="License" /></a>
   <a href="https://pypi.org/project/magic-dash/"><img src="https://img.shields.io/pypi/v/magic-dash.svg?color=dark-green" alt="PyPI" /></a>
   <a href="https://github.com/astral-sh/ruff"><img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json" alt="Ruff" /></a>
