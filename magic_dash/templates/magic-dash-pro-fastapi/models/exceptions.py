@@ -20,3 +20,15 @@ class ExistingDepartmentError(Exception):
     """部门信息已存在"""
 
     pass
+
+
+class InvalidPermissionGroupError(Exception):
+    """非法权限分组信息"""
+
+    pass
+
+
+class ExistingPermissionGroupError(Exception):
+    """权限分组信息已存在"""
+
+    pass

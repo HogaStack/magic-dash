@@ -10,7 +10,8 @@ from werkzeug.security import generate_password_hash
 from server import app
 from models.users import Users
 from models.departments import Departments
-from models.exceptions import ExistingUserError
+from models.user_permission_groups import UserPermissionGroups
+from models.exceptions import InvalidUserError, ExistingUserError
 
 from configs import AuthConfig
 from utils.validation_utils import validate_optional_email
@@ -32,6 +33,8 @@ def refresh_user_manage_table_data():
     # 查询全部用户信息（含部门名称）
     all_users = Users.get_all_users(with_department_name=True)
 
+    effective_roles = UserPermissionGroups.get_effective_roles()
+
     return [
         {
             "user_id": item["user_id"],
@@ -39,9 +42,16 @@ def refresh_user_manage_table_data():
             "user_email": item["user_email"] or "无",
             "user_department": item["department_name"] or "无",
             "user_role": {
-                "tag": AuthConfig.roles.get(item["user_role"])["description"],
+                "tag": effective_roles.get(
+                    item["user_role"],
+                    {"description": "未知角色"},
+                )["description"],
                 "color": (
-                    "gold" if item["user_role"] == AuthConfig.admin_role else "blue"
+                    "gold"
+                    if item["user_role"] == AuthConfig.admin_role
+                    else "blue"
+                    if item["user_role"] in effective_roles
+                    else "red"
                 ),
             },
             "操作": (
@@ -234,6 +244,8 @@ def open_add_user_modal(nClicks):
 
     # 查询当前全部部门信息
     departments = Departments.get_all_departments()
+    # 查询配置参数与数据库综合后的全部有效用户角色
+    role_options = UserPermissionGroups.get_effective_role_options()
 
     return [
         True,
@@ -282,10 +294,7 @@ def open_add_user_modal(nClicks):
                 fac.AntdFormItem(
                     fac.AntdSelect(
                         id="user-manage-add-user-form-user-role",
-                        options=[
-                            {"label": value["description"], "value": key}
-                            for key, value in AuthConfig.roles.items()
-                        ],
+                        options=role_options,
                         allowClear=False,
                     ),
                     label="用户角色",
@@ -329,6 +338,7 @@ def handle_add_user(okCounts, values):
 
     else:
         user_email = (values.get("user-manage-add-user-form-user-email") or "").strip()
+        user_role = values.get("user-manage-add-user-form-user-role")
 
         if not validate_optional_email(user_email):
             set_props(
@@ -340,6 +350,12 @@ def handle_add_user(okCounts, values):
                     )
                 },
             )
+            return
+
+        if not isinstance(user_role, str) or not UserPermissionGroups.is_role_valid(
+            user_role
+        ):
+            show_user_manage_error("用户角色不正确")
             return
 
         # 检查用户名是否重复
@@ -374,16 +390,20 @@ def handle_add_user(okCounts, values):
 
         else:
             # 新增用户
-            Users.add_user(
-                user_id=str(uuid.uuid4()),
-                user_name=values["user-manage-add-user-form-user-name"],
-                password_hash=generate_password_hash(
-                    values["user-manage-add-user-form-user-password"]
-                ),
-                user_email=user_email or None,
-                department_id=values.get("user-manage-add-user-form-department-id"),
-                user_role=values["user-manage-add-user-form-user-role"],
-            )
+            try:
+                Users.add_user(
+                    user_id=str(uuid.uuid4()),
+                    user_name=values["user-manage-add-user-form-user-name"],
+                    password_hash=generate_password_hash(
+                        values["user-manage-add-user-form-user-password"]
+                    ),
+                    user_email=user_email or None,
+                    department_id=values.get("user-manage-add-user-form-department-id"),
+                    user_role=user_role,
+                )
+            except (InvalidUserError, ExistingUserError) as e:
+                show_user_manage_error(str(e))
+                return
 
             set_props(
                 "global-message",
@@ -407,6 +427,8 @@ def build_edit_user_form(match_user):
 
     # 查询当前全部部门信息
     departments = Departments.get_all_departments()
+    # 查询配置参数与数据库综合后的全部有效用户角色
+    role_options = UserPermissionGroups.get_effective_role_options()
 
     return fac.AntdForm(
         [
@@ -450,10 +472,7 @@ def build_edit_user_form(match_user):
             fac.AntdFormItem(
                 fac.AntdSelect(
                     id="user-manage-edit-user-form-user-role",
-                    options=[
-                        {"label": value["description"], "value": key}
-                        for key, value in AuthConfig.roles.items()
-                    ],
+                    options=role_options,
                     allowClear=False,
                 ),
                 label="用户角色",
@@ -569,7 +588,9 @@ def handle_edit_user(okCounts, values):
         show_user_manage_error("邮箱格式不正确")
         return
 
-    if not isinstance(user_role, str) or user_role not in AuthConfig.roles:
+    if not isinstance(user_role, str) or not UserPermissionGroups.is_role_valid(
+        user_role
+    ):
         show_user_manage_error("用户角色不正确")
         return
 
@@ -602,7 +623,7 @@ def handle_edit_user(okCounts, values):
             department_id=department_id,
             user_role=user_role,
         )
-    except ExistingUserError as e:
+    except (InvalidUserError, ExistingUserError) as e:
         show_user_manage_error(str(e))
         return
 

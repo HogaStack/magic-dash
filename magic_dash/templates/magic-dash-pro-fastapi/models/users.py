@@ -7,6 +7,7 @@ from . import db, BaseModel
 from configs import AuthConfig
 from .departments import Departments
 from .exceptions import InvalidUserError, ExistingUserError
+from .user_permission_groups import UserPermissionGroups
 
 
 class Users(BaseModel):
@@ -24,7 +25,7 @@ class Users(BaseModel):
     # 用户邮箱，允许空值；非空邮箱必须唯一
     user_email = CharField(null=True, unique=True)
 
-    # 用户角色，全部可选项见configs.AuthConfig.roles
+    # 用户角色，全部可选项见配置参数与数据库综合后的有效角色
     user_role = CharField(default=AuthConfig.normal_role)
 
     # 用户所属部门id，允许空值
@@ -125,6 +126,10 @@ class Users(BaseModel):
             elif user_email and cls.get_or_none(cls.user_email == user_email):
                 raise ExistingUserError("邮箱已被其他用户使用")
 
+            # 若用户角色不属于有效角色
+            elif not UserPermissionGroups.is_role_valid(user_role):
+                raise InvalidUserError("用户角色不正确")
+
             # 执行用户添加操作
             with db.atomic():
                 cls.create(
@@ -183,6 +188,11 @@ class Users(BaseModel):
                 )
                 if duplicate_user:
                     raise ExistingUserError("邮箱已被其他用户使用")
+
+            if "user_role" in kwargs and not UserPermissionGroups.is_role_valid(
+                kwargs["user_role"]
+            ):
+                raise InvalidUserError("用户角色不正确")
 
             with db.atomic():
                 cls.update(**kwargs).where(cls.user_id == user_id).execute()
