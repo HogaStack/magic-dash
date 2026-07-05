@@ -6,6 +6,7 @@ from flask_login import LoginManager, UserMixin, current_user, AnonymousUserMixi
 
 # 应用基础参数
 from models.users import Users
+from models.user_permission_groups import UserPermissionGroups
 from configs import BaseConfig, AuthConfig
 
 app = dash.Dash(
@@ -75,8 +76,22 @@ def user_loader(user_id):
     return user
 
 
+class UserPermissions(dict):
+    """用户角色Permission懒加载字典"""
+
+    def __missing__(self, role):
+        if UserPermissionGroups.is_role_valid(role):
+            permission = Permission(RoleNeed(role))
+            self[role] = permission
+            return permission
+
+        raise KeyError(role)
+
+
 # 定义不同用户角色
-user_permissions = {role: Permission(RoleNeed(role)) for role in AuthConfig.roles}
+user_permissions = UserPermissions(
+    {role: Permission(RoleNeed(role)) for role in AuthConfig.roles}
+)
 
 
 @identity_loaded.connect_via(app.server)

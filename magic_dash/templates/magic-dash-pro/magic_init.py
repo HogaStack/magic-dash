@@ -16,6 +16,7 @@ from models import db
 from models.departments import Departments
 from models.email_verifications import EmailVerifications
 from models.otp_credentials import OtpCredentials
+from models.user_permission_groups import UserPermissionGroups
 from models.users import Users
 from utils.validation_utils import validate_optional_email
 
@@ -25,6 +26,7 @@ console = Console()
 BUILTIN_DATABASE_TABLES = [
     ("用户信息表", Users, "用户账号、角色、部门归属与登录会话"),
     ("部门信息表", Departments, "组织部门层级与扩展信息"),
+    ("用户权限分组表", UserPermissionGroups, "用户角色分组与页面访问规则"),
     ("邮箱验证码信息表", EmailVerifications, "邮箱登录/绑定验证码记录"),
     ("用户OTP动态口令凭据表", OtpCredentials, "用户TOTP二次验证凭据"),
 ]

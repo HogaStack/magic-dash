@@ -6,6 +6,7 @@ import feffery_utils_components as fuc
 from feffery_dash_utils.style_utils import style
 
 from configs import BaseConfig, RouterConfig, LayoutConfig, AuthConfig
+from models.user_permission_groups import UserPermissionGroups
 from views.core_pages import independent_page_demo, independent_wildcard_page_demo
 from components import (
     core_side_menu,
@@ -13,6 +14,7 @@ from components import (
     otp_binding,
     user_manage,
     department_manage,
+    permission_manage,
     version_changelog_modal,
 )
 
@@ -129,6 +131,7 @@ def render(current_user_access_rule: str, current_pathname: str = None):
                 [
                     user_manage.render(),
                     department_manage.render(),
+                    permission_manage.render(),
                 ]
                 if current_user.user_role == AuthConfig.admin_role
                 else []
@@ -327,9 +330,9 @@ def render(current_user_access_rule: str, current_pathname: str = None):
                                                 ),
                                                 fac.AntdText(
                                                     "角色：{}".format(
-                                                        AuthConfig.roles.get(
+                                                        UserPermissionGroups.get_role_description(
                                                             current_user.user_role
-                                                        )["description"]
+                                                        )
                                                     ),
                                                     className="global-help-text",
                                                     style=style(fontSize=12),
@@ -372,6 +375,10 @@ def render(current_user_access_rule: str, current_pathname: str = None):
                                                         {
                                                             "title": "部门管理",
                                                             "key": "部门管理",
+                                                        },
+                                                        {
+                                                            "title": "权限管理",
+                                                            "key": "权限管理",
                                                         },
                                                     ]
                                                     if (

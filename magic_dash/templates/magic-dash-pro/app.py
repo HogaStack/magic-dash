@@ -14,6 +14,7 @@ from feffery_dash_utils.version_utils import (
 
 from server import app
 from models.users import Users
+from models.user_permission_groups import UserPermissionGroups
 from views import core_pages, login
 from views.status_pages import _403, _404, _500
 from configs import BaseConfig, RouterConfig, AuthConfig
@@ -145,9 +146,23 @@ def root_router(pathname, trigger):
         )
     ):
         # 校验当前用户是否具有针对当前访问目标页面的权限
-        current_user_access_rule = AuthConfig.pathname_access_rules.get(
+        current_user_access_rule = UserPermissionGroups.get_effective_pathname_access_rule(
             current_user.user_role
         )
+
+        # 若当前用户角色不属于配置参数或数据库定义的有效权限分组
+        if not current_user_access_rule:
+            # 重定向至403页面
+            set_props(
+                "global-redirect",
+                {
+                    "children": dcc.Location(
+                        pathname="/403-demo", id="global-redirect-target"
+                    )
+                },
+            )
+
+            return dash.no_update
 
         # 检查是否满足通配渲染页面规则
         match_wildcard_patterns = [

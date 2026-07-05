@@ -60,7 +60,7 @@ app.clientside_callback(
     State("core-pages-header-user-dropdown", "clickedKey"),
 )
 def open_user_manage_drawer(nClicks, clickedKey):
-    """打开个人信息、OTP绑定、用户管理面板"""
+    """打开个人信息、OTP绑定、系统管理面板"""
 
     if clickedKey == "个人信息":
         set_props("personal-info-modal", {"visible": True, "loading": True})
@@ -76,6 +76,9 @@ def open_user_manage_drawer(nClicks, clickedKey):
 
     elif clickedKey == "部门管理":
         set_props("department-manage-drawer", {"visible": True, "loading": True})
+
+    elif clickedKey == "权限管理":
+        set_props("permission-manage-drawer", {"visible": True, "loading": True})
 
 
 @app.callback(
