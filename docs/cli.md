@@ -64,6 +64,7 @@ magic-dash create [OPTIONS]
 | `--name` | `-n` | 无 | [Dash](https://github.com/plotly/dash)应用项目模板名称；可选`simple-tool`、`magic-dash`、`magic-dash-pro` |
 | `--path` | `-p` | `"."` | 项目生成目标父目录 |
 | `--backend` | `-b` | 交互选择 | 后端类型；可选`flask`、`fastapi` |
+| `--orm-engine` | 无 | `peewee` | `magic-dash-pro`数据库ORM引擎；可选`peewee`、`sqlalchemy`、`sqlmodel` |
 
 长参数和简写参数完全等价，例如`--name`可写作`-n`，`--path`可写作`-p`，`--backend`可写作`-b`。
 
@@ -75,7 +76,7 @@ magic-dash create [OPTIONS]
 magic-dash create
 ```
 
-选择模板后，命令会继续提示选择后端类型并输入项目名称。如果目标父目录下已存在同名文件夹，会要求重新输入项目名称，避免覆盖已有项目。
+选择模板后，命令会继续提示选择后端类型并输入项目名称。若选择`magic-dash-pro`模板，在后端选择之后还会继续提示选择数据库ORM引擎。如果目标父目录下已存在同名文件夹，会要求重新输入项目名称，避免覆盖已有项目。
 
 ## 指定模板创建
 
@@ -91,6 +92,7 @@ magic-dash create --name magic-dash-pro
 magic-dash create --name simple-tool --backend flask --path ./workspace
 magic-dash create --name magic-dash --backend fastapi --path ./workspace
 magic-dash create --name magic-dash-pro --backend fastapi --path ./workspace
+magic-dash create --name magic-dash-pro --backend fastapi --orm-engine sqlalchemy --path ./workspace
 ```
 
 也可以使用简写参数：
@@ -135,6 +137,36 @@ magic-dash create -n magic-dash-pro -b fastapi
 `simple-tool`和`magic-dash`选择`FastAPI`后端时，会在复制原始模板后轻量改写生成结果：`requirements.txt`会切换到`dash[fastapi]`并补充`fastapi`、`uvicorn`依赖，`dash.Dash()`实例会添加`backend="fastapi"`。`magic-dash`中的浏览器版本检查也会从`Flask before_request`改写为`FastAPI middleware`。
 
 `magic-dash-pro`选择`FastAPI`后端时，仍使用内部维护的`magic-dash-pro-fastapi`模板变体，以适配登录、鉴权和权限管理等复杂差异。
+
+## `magic-dash-pro` ORM引擎选择
+
+创建`magic-dash-pro`时可选择数据库ORM引擎：
+
+| 选项 | 说明 |
+| --- | --- |
+| `Peewee` | 默认引擎，保持历史模板行为 |
+| `SQLAlchemy` | 使用SQLAlchemy 2.x模型与Session实现 |
+| `SQLModel` | 使用SQLModel模型定义，并复用SQLAlchemy会话能力 |
+
+交互式创建时，命令会在后端类型选择之后继续提示选择ORM引擎。通过命令行参数创建时，若未传入`--orm-engine`，默认生成`Peewee`版本；显式传入`--orm-engine sqlalchemy`或`--orm-engine sqlmodel`时，会生成只包含对应模型与依赖的项目。
+
+```bash
+magic-dash create --name magic-dash-pro --backend flask --orm-engine peewee
+magic-dash create --name magic-dash-pro --backend fastapi --orm-engine sqlalchemy
+magic-dash create --name magic-dash-pro --backend fastapi --orm-engine sqlmodel
+```
+
+生成后的项目只会保留被选中的ORM模型代码，不会携带其他ORM实现目录。
+
+原始模板的`requirements.txt`不预置任何ORM依赖。创建项目时，`CLI`会清理可能残留的其他ORM依赖，并把当前选择的ORM依赖追加到生成项目`requirements.txt`末尾：
+
+| ORM引擎 | 追加依赖 |
+| --- | --- |
+| `peewee` | `peewee>=4.0.0` |
+| `sqlalchemy` | `SQLAlchemy>=2.0.0` |
+| `sqlmodel` | `sqlmodel>=0.0.27` |
+
+ORM引擎在项目创建时确定。生成完成后，`models`目录和`requirements.txt`只保留所选引擎对应的代码与依赖；如需更换ORM引擎，应重新执行`magic-dash create`生成对应版本，或由开发者手动迁移`models`实现与依赖。
 
 ## `magic-dash create`与公共静态资源
 
