@@ -137,8 +137,10 @@ def root_router(pathname, trigger):
         )
     ):
         # 校验当前用户是否具有针对当前访问目标页面的权限
-        current_user_access_rule = UserPermissionGroups.get_effective_pathname_access_rule(
-            current_user.user_role
+        current_user_access_rule = (
+            UserPermissionGroups.get_effective_pathname_access_rule(
+                current_user.user_role
+            )
         )
 
         # 若当前用户角色不属于配置参数或数据库定义的有效权限分组

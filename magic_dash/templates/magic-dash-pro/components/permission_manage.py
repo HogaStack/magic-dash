@@ -318,9 +318,7 @@ def render_permission_manage_drawer(visible):
                 # 新增权限组模态框
                 fac.AntdModal(
                     id="permission-manage-add-permission-group-modal",
-                    title=fac.AntdSpace(
-                        [fac.AntdIcon(icon="antd-plus"), "新增权限组"]
-                    ),
+                    title=fac.AntdSpace([fac.AntdIcon(icon="antd-plus"), "新增权限组"]),
                     mask=False,
                     renderFooter=True,
                     okClickClose=False,
@@ -329,9 +327,7 @@ def render_permission_manage_drawer(visible):
                 # 编辑权限组模态框
                 fac.AntdModal(
                     id="permission-manage-edit-permission-group-modal",
-                    title=fac.AntdSpace(
-                        [fac.AntdIcon(icon="antd-edit"), "编辑权限组"]
-                    ),
+                    title=fac.AntdSpace([fac.AntdIcon(icon="antd-edit"), "编辑权限组"]),
                     mask=False,
                     renderFooter=True,
                     okClickClose=False,

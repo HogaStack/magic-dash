@@ -1,66 +1,26 @@
-from peewee import SqliteDatabase, Model
-from feffery_dash_utils.version_utils import check_dependencies_version
-from playhouse.pool import PooledPostgresqlDatabase, PooledMySQLDatabase
+from importlib import import_module
 
-from configs.database_config import DatabaseConfig
+from ._registry import get_engine_package
 
 
-def get_db():
-    """根据配置参数，创建数据库连接对象"""
+_engine_module = import_module(get_engine_package(), package=__name__)
 
-    if DatabaseConfig.database_type == "postgresql":
-        # 必要依赖检查
-        check_dependencies_version(
-            rules=[
-                {
-                    "name": "psycopg2-binary",
-                }
-            ]
-        )
+# 将当前ORM实现的数据库能力统一暴露给初始化脚本使用
+# 应用侧模块仍只需要导入具体模型类及其classmethod
+db = getattr(_engine_module, "db", None)
+BaseModel = getattr(_engine_module, "BaseModel", object)
+create_tables = _engine_module.create_tables
+get_model_table_name = _engine_module.get_model_table_name
+model_table_exists = _engine_module.model_table_exists
+model_table_has_data = _engine_module.model_table_has_data
+ensure_user_email_schema = _engine_module.ensure_user_email_schema
 
-        # 返回postgresql类型连接池对象
-        return PooledPostgresqlDatabase(
-            host=DatabaseConfig.postgresql_config["host"],
-            port=DatabaseConfig.postgresql_config["port"],
-            user=DatabaseConfig.postgresql_config["user"],
-            password=DatabaseConfig.postgresql_config["password"],
-            database=DatabaseConfig.postgresql_config["database"],
-            max_connections=32,
-            stale_timeout=300,
-        )
-
-    elif DatabaseConfig.database_type == "mysql":
-        # 必要依赖检查
-        check_dependencies_version(
-            rules=[
-                {
-                    "name": "pymysql",
-                }
-            ]
-        )
-
-        # 返回mysql类型连接池对象
-        return PooledMySQLDatabase(
-            host=DatabaseConfig.mysql_config["host"],
-            port=DatabaseConfig.mysql_config["port"],
-            user=DatabaseConfig.mysql_config["user"],
-            passwd=DatabaseConfig.mysql_config["password"],
-            database=DatabaseConfig.mysql_config["database"],
-            max_connections=32,
-            stale_timeout=300,
-        )
-
-    # 默认返回sqlite类型连接对象
-    return SqliteDatabase("magic_dash_pro.db")
-
-
-# 创建数据库连接对象
-db = get_db()
-
-
-class BaseModel(Model):
-    """数据库表模型基类"""
-
-    class Meta:
-        # 关联数据库
-        database = db
+__all__ = [
+    "db",
+    "BaseModel",
+    "create_tables",
+    "get_model_table_name",
+    "model_table_exists",
+    "model_table_has_data",
+    "ensure_user_email_schema",
+]

@@ -4,7 +4,6 @@ feffery_dash_utils>=0.2.6
 feffery_utils_components>=0.3.6,<0.4.0
 feffery_markdown_components>=0.4.3
 Flask_Login
-peewee>=4.0.0
 user_agents
 flask-compress
 flask-principal

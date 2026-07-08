@@ -20,7 +20,10 @@ def validate_otp_config():
     ):
         raise ValueError("OTP动态口令刷新周期必须为正整数")
 
-    if not isinstance(OtpConfig.otp_valid_window, int) or OtpConfig.otp_valid_window < 0:
+    if (
+        not isinstance(OtpConfig.otp_valid_window, int)
+        or OtpConfig.otp_valid_window < 0
+    ):
         raise ValueError("OTP动态口令有效窗口偏移量不能为负数")
 
     if (

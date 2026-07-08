@@ -139,9 +139,7 @@ def render_user_manage_drawer(visible):
                 # 编辑用户模态框
                 fac.AntdModal(
                     id="user-manage-edit-user-modal",
-                    title=fac.AntdSpace(
-                        [fac.AntdIcon(icon="antd-edit"), "编辑用户"]
-                    ),
+                    title=fac.AntdSpace([fac.AntdIcon(icon="antd-edit"), "编辑用户"]),
                     mask=False,
                     renderFooter=True,
                     okClickClose=False,

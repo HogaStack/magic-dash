@@ -1,6 +1,8 @@
 import os
 import py_compile
 import subprocess
+import sys
+import importlib.util
 import pytest
 from click.testing import CliRunner
 
@@ -93,7 +95,26 @@ def assert_pro_public_assets_created(project_path):
         )
 
 
-def assert_backend_created(project_path, template_name, backend):
+def assert_generated_pro_models_importable(project_path):
+    script = (
+        "import models; "
+        "from models.users import Users; "
+        "from models.departments import Departments; "
+        "models.create_tables([Users, Departments]); "
+        "assert models.get_model_table_name(Users) == 'users'"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=project_path,
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def assert_backend_created(project_path, template_name, backend, orm_engine="peewee"):
     dash_file = "app.py" if template_name == "simple-tool" else "server.py"
     dash_path = os.path.join(project_path, dash_file)
     requirements_path = os.path.join(project_path, "requirements.txt")
@@ -112,6 +133,63 @@ def assert_backend_created(project_path, template_name, backend):
 
     if template_name == "magic-dash-pro":
         assert_pro_public_assets_created(project_path)
+        models_path = os.path.join(project_path, "models")
+
+        # magic-dash-pro在生成阶段应只保留用户选中的ORM实现，避免最终项目携带未使用代码
+        assert not os.path.exists(os.path.join(models_path, "_peewee"))
+        assert not os.path.exists(os.path.join(models_path, "_sqlalchemy"))
+        assert not os.path.exists(os.path.join(models_path, "_sqlmodel"))
+        assert not os.path.exists(os.path.join(models_path, "_registry.py"))
+
+        model_files = [
+            "__init__.py",
+            "departments.py",
+            "email_verifications.py",
+            "logs.py",
+            "otp_credentials.py",
+            "user_permission_groups.py",
+            "users.py",
+        ]
+        for model_file in model_files:
+            model_path = os.path.join(models_path, model_file)
+            assert os.path.exists(model_path), f"模型文件未生成: {model_file}"
+            py_compile.compile(model_path, doraise=True)
+
+        with open(os.path.join(models_path, "__init__.py"), encoding="utf-8") as f:
+            model_init_content = f.read()
+        with open(os.path.join(models_path, "users.py"), encoding="utf-8") as f:
+            model_users_content = f.read()
+        with open(
+            os.path.join(project_path, "configs", "database_config.py"),
+            encoding="utf-8",
+        ) as f:
+            database_config_content = f.read()
+
+        assert "load_model" not in model_users_content
+        assert "orm_engine" not in model_init_content
+        assert "orm_engine" not in database_config_content
+        assert "ORM引擎" not in database_config_content
+        assert "默认使用peewee" not in database_config_content
+
+        expected_orm_requirement = magic_dash_module.PRO_ORM_REQUIREMENTS[orm_engine]
+        assert requirements[-1] == expected_orm_requirement
+        assert requirements.count(expected_orm_requirement) == 1
+
+        if orm_engine == "peewee":
+            assert "peewee>=4.0.0" in requirements_content
+            assert "SQLAlchemy" not in requirements_content
+            assert "sqlmodel" not in requirements_content
+            assert "from peewee import" in model_init_content
+        elif orm_engine == "sqlalchemy":
+            assert "SQLAlchemy>=2.0.0" in requirements_content
+            assert "peewee" not in requirements_content
+            assert "sqlmodel" not in requirements_content
+            assert "from sqlalchemy import" in model_init_content
+        elif orm_engine == "sqlmodel":
+            assert "sqlmodel>=0.0.27" in requirements_content
+            assert "peewee" not in requirements_content
+            assert "SQLAlchemy" not in requirements_content
+            assert "from sqlmodel import" in model_init_content
 
         if backend in ["flask", "fastapi"]:
             email_feature_files = [
@@ -178,8 +256,89 @@ def test_create_help_includes_backend_option():
     assert "-p, --path" in result.output
     assert "-b, --backend" in result.output
     assert "--backend" in result.output
+    assert "--orm-engine" in result.output
     assert "flask" in result.output
     assert "fastapi" in result.output
+    assert "peewee" in result.output
+    assert "sqlalchemy" in result.output
+    assert "sqlmodel" in result.output
+
+
+def test_magic_dash_pro_template_requirements_do_not_embed_orm_dependencies():
+    """测试pro原始模板不预置ORM依赖，由生成阶段按选择追加"""
+    template_names = ["magic-dash-pro", "magic-dash-pro-fastapi"]
+
+    for template_name in template_names:
+        requirements_path = os.path.join(
+            magic_dash_module.PACKAGE_ROOT,
+            "templates",
+            template_name,
+            "requirements.txt",
+        )
+        with open(requirements_path, encoding="utf-8") as f:
+            requirements_content = f.read()
+
+        assert "peewee" not in requirements_content
+        assert "SQLAlchemy" not in requirements_content
+        assert "sqlmodel" not in requirements_content
+
+
+def test_magic_dash_pro_template_database_config_does_not_expose_orm_engine():
+    """测试pro原始模板不再暴露运行期ORM引擎配置"""
+    template_names = ["magic-dash-pro", "magic-dash-pro-fastapi"]
+
+    for template_name in template_names:
+        config_path = os.path.join(
+            magic_dash_module.PACKAGE_ROOT,
+            "templates",
+            template_name,
+            "configs",
+            "database_config.py",
+        )
+        with open(config_path, encoding="utf-8") as f:
+            config_content = f.read()
+
+        assert "orm_engine" not in config_content
+        assert "ORM引擎" not in config_content
+
+
+def test_supported_orm_dependencies_are_available_in_test_environment():
+    """测试当前测试环境具备所有内置ORM引擎依赖"""
+    package_names = ["peewee", "sqlalchemy", "sqlmodel"]
+
+    for package_name in package_names:
+        assert importlib.util.find_spec(package_name) is not None, (
+            f"缺少ORM测试依赖: {package_name}"
+        )
+
+
+def test_remove_orm_requirements_handles_package_name_variants(tmp_path):
+    """测试ORM依赖清理按包名识别，兼容不同版本和大小写写法"""
+    requirements_path = tmp_path / "requirements.txt"
+    requirements_path.write_text(
+        "\n".join(
+            [
+                "dash>=4.2.0,<5.0.0",
+                "SQLAlchemy==2.0.0",
+                "sqlmodel>=0.0.27",
+                "peewee>=4.0.0; python_version >= '3.10'",
+                "# peewee comment should stay",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    magic_dash_module._remove_requirements_by_package_names(
+        requirements_path,
+        magic_dash_module.PRO_ORM_REQUIREMENT_PACKAGES,
+    )
+
+    requirements = requirements_path.read_text(encoding="utf-8").splitlines()
+    assert requirements == [
+        "dash>=4.2.0,<5.0.0",
+        "# peewee comment should stay",
+    ]
 
 
 def test_help_includes_init_assets_command():
@@ -229,10 +388,54 @@ def test_create_with_full_template_backend_options(tmp_path, template_name, back
     assert_backend_created(project_path, template_name, backend)
 
     if template_name == "magic-dash-pro":
+        assert_generated_pro_models_importable(project_path)
         assert "正在复制公共静态资源" in result.output
         assert "login-bg.mp4" in result.output
         assert "gradient-bg.jpg" in result.output
         assert "gradient-bg-side.png" in result.output
+
+
+@pytest.mark.parametrize("backend", ["flask", "fastapi"])
+@pytest.mark.parametrize(
+    "orm_engine, expected_orm_engine",
+    [
+        ("sqlalchemy", "sqlalchemy"),
+        ("sqlmodel", "sqlmodel"),
+    ],
+)
+def test_create_magic_dash_pro_with_selected_orm_engine(
+    tmp_path,
+    backend,
+    orm_engine,
+    expected_orm_engine,
+):
+    """测试magic-dash-pro可按参数生成指定ORM模型项目"""
+    project_path = tmp_path / "magic-dash-pro"
+
+    result = CliRunner().invoke(
+        magic_dash_module.magic_dash,
+        [
+            "create",
+            "--name",
+            "magic-dash-pro",
+            "--path",
+            str(tmp_path),
+            "--backend",
+            backend,
+            "--orm-engine",
+            orm_engine,
+        ],
+        input="\n",
+    )
+
+    assert result.exit_code == 0, f"命令执行失败: {result.output}"
+    assert_backend_created(
+        project_path,
+        "magic-dash-pro",
+        backend,
+        expected_orm_engine,
+    )
+    assert_generated_pro_models_importable(project_path)
 
 
 def test_create_with_short_template_backend_options(tmp_path):
@@ -265,7 +468,10 @@ def test_create_interactive_template_and_backend(
     tmp_path, monkeypatch, template_name, backend
 ):
     """测试交互式选择模板和后端类型创建项目"""
-    select_sequence(monkeypatch, template_name, backend)
+    choices = [template_name, backend]
+    if template_name == "magic-dash-pro":
+        choices.append("peewee")
+    select_sequence(monkeypatch, *choices)
     project_path = tmp_path / template_name
 
     result = CliRunner().invoke(
@@ -293,9 +499,28 @@ def test_create_interactive_template_with_backend_option(tmp_path, monkeypatch):
     assert_backend_created(project_path, "magic-dash", "fastapi")
 
 
+def test_create_interactive_magic_dash_pro_with_backend_option_prompts_orm(
+    tmp_path,
+    monkeypatch,
+):
+    """测试交互选择pro模板且参数指定后端时仍继续选择ORM引擎"""
+    select_sequence(monkeypatch, "magic-dash-pro", "sqlmodel")
+    project_path = tmp_path / "magic-dash-pro"
+
+    result = CliRunner().invoke(
+        magic_dash_module.magic_dash,
+        ["create", "--path", str(tmp_path), "--backend", "fastapi"],
+        input="\n",
+    )
+
+    assert result.exit_code == 0, f"命令执行失败: {result.output}"
+    assert_backend_created(project_path, "magic-dash-pro", "fastapi", "sqlmodel")
+    assert_generated_pro_models_importable(project_path)
+
+
 def test_create_magic_dash_pro_fastapi_backend(tmp_path, monkeypatch):
     """测试 magic-dash-pro 模板的 FastAPI 后端变体生成"""
-    select_backend(monkeypatch, "fastapi")
+    select_sequence(monkeypatch, "fastapi", "peewee")
     project_path = tmp_path / "magic-dash-pro"
 
     result = CliRunner().invoke(
@@ -375,7 +600,7 @@ def test_create_lightweight_template_fastapi_backend(
 
 def test_create_magic_dash_pro_default_flask_backend(tmp_path, monkeypatch):
     """测试 magic-dash-pro 模板默认使用 Flask 后端"""
-    select_backend(monkeypatch, "flask")
+    select_sequence(monkeypatch, "flask", "peewee")
     project_path = tmp_path / "magic-dash-pro"
 
     result = CliRunner().invoke(

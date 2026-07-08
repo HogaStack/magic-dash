@@ -1,7 +1,6 @@
 import os
 
 import questionary
-from peewee import fn
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
@@ -12,7 +11,13 @@ from rich.text import Text
 from werkzeug.security import generate_password_hash
 
 from configs import AuthConfig, BaseConfig
-from models import db
+from models import (
+    create_tables,
+    ensure_user_email_schema as ensure_model_user_email_schema,
+    get_model_table_name,
+    model_table_exists,
+    model_table_has_data,
+)
 from models.departments import Departments
 from models.email_verifications import EmailVerifications
 from models.otp_credentials import OtpCredentials
@@ -76,14 +81,13 @@ def check_rsa_keys_exist():
 def check_table_exists(table_model):
     """检查数据表是否已存在"""
 
-    return table_model.table_exists()
+    return model_table_exists(table_model)
 
 
 def check_table_has_data(table_model):
     """检查数据表是否已有数据"""
 
-    with db.connection_context():
-        return table_model.select().count() > 0
+    return model_table_has_data(table_model)
 
 
 def get_builtin_table_creation_records(table_exists_map):
@@ -92,7 +96,7 @@ def get_builtin_table_creation_records(table_exists_map):
     return [
         {
             "label": label,
-            "table_name": table_model._meta.table_name,
+            "table_name": get_model_table_name(table_model),
             "description": description,
             "created": not table_exists_map[table_model],
         }
@@ -140,52 +144,9 @@ def print_builtin_table_creation_records(table_creation_records):
 
 
 def ensure_user_email_schema():
-    """确保用户邮箱字段及其唯一约束存在"""
+    """通过models层统一处理用户邮箱字段与唯一约束兼容逻辑"""
 
-    with db.connection_context():
-        table_name = Users._meta.table_name
-        column_names = {column.name for column in db.get_columns(table_name)}
-        changes = []
-
-        if "user_email" not in column_names:
-            db.execute_sql(
-                f"ALTER TABLE {table_name} ADD COLUMN user_email VARCHAR(255)"
-            )
-            changes.append("用户邮箱字段")
-
-        # 旧版本可能以空字符串表示未设置邮箱，统一转换为NULL以允许多个空邮箱。
-        Users.update(user_email=None).where(Users.user_email == "").execute()
-
-        indexes = db.get_indexes(table_name)
-        has_unique_email_index = any(
-            index.unique and list(index.columns) == ["user_email"] for index in indexes
-        )
-
-        if not has_unique_email_index:
-            duplicate_emails = [
-                item["user_email"]
-                for item in (
-                    Users.select(Users.user_email)
-                    .where(Users.user_email.is_null(False))
-                    .group_by(Users.user_email)
-                    .having(fn.COUNT(Users.user_id) > 1)
-                    .dicts()
-                )
-            ]
-            if duplicate_emails:
-                raise RuntimeError(
-                    "无法为用户邮箱建立唯一约束，以下邮箱存在重复：{}".format(
-                        ", ".join(duplicate_emails)
-                    )
-                )
-
-            index_name = f"{table_name}_user_email_unique"
-            db.execute_sql(
-                f"CREATE UNIQUE INDEX {index_name} ON {table_name} (user_email)"
-            )
-            changes.append("用户邮箱唯一约束")
-
-        return changes
+    return ensure_model_user_email_schema(Users)
 
 
 def ask_admin_email():
@@ -243,7 +204,7 @@ def main():
     admin_email = None
 
     # 创建表（如果表不存在）
-    db.create_tables([table_model for _, table_model, _ in BUILTIN_DATABASE_TABLES])
+    create_tables([table_model for _, table_model, _ in BUILTIN_DATABASE_TABLES])
     print_builtin_table_creation_records(
         get_builtin_table_creation_records(table_exists_map)
     )
