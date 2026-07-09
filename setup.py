@@ -30,6 +30,14 @@ setup(
     url="https://github.com/HogaStack/magic-dash",
     python_requires=">=3.9, <3.15",
     install_requires=["click", "rich", "questionary", "dash>=4.2.0,<5.0.0"],
+    extras_require={
+        "test": [
+            "pytest",
+            "peewee>=4.0.0",
+            "SQLAlchemy>=2.0.0",
+            "sqlmodel>=0.0.27",
+        ],
+    },
     entry_points={
         "console_scripts": [
             "magic-dash = magic_dash:magic_dash",
