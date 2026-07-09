@@ -1,17 +1,28 @@
 from contextlib import contextmanager
+from importlib.util import find_spec
 
-from feffery_dash_utils.version_utils import check_dependencies_version
 from sqlalchemy import create_engine, inspect, text, func, select, update
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from configs.database_config import DatabaseConfig
 
 
+def check_database_driver_installed(package_name, import_name=None):
+    """Check an optional database driver without importing template UI helpers."""
+
+    import_name = import_name or package_name
+    if find_spec(import_name) is None:
+        raise ModuleNotFoundError(
+            f"Missing database driver dependency: {package_name}. "
+            f"Please install it with `pip install {package_name}`."
+        )
+
+
 def get_database_url():
     """根据数据库类型配置生成SQLAlchemy连接URL"""
 
     if DatabaseConfig.database_type == "postgresql":
-        check_dependencies_version(rules=[{"name": "psycopg2-binary"}])
+        check_database_driver_installed("psycopg2-binary", "psycopg2")
         config = DatabaseConfig.postgresql_config
         return (
             "postgresql+psycopg2://{user}:{password}@{host}:{port}/{database}".format(
@@ -20,7 +31,7 @@ def get_database_url():
         )
 
     if DatabaseConfig.database_type == "mysql":
-        check_dependencies_version(rules=[{"name": "pymysql"}])
+        check_database_driver_installed("pymysql")
         config = DatabaseConfig.mysql_config
         return "mysql+pymysql://{user}:{password}@{host}:{port}/{database}".format(
             **config

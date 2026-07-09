@@ -1,24 +1,28 @@
+from importlib.util import find_spec
+
 from peewee import SqliteDatabase, Model, fn
-from feffery_dash_utils.version_utils import check_dependencies_version
 from playhouse.pool import PooledPostgresqlDatabase, PooledMySQLDatabase
 
 from configs.database_config import DatabaseConfig
+
+
+def check_database_driver_installed(package_name, import_name=None):
+    """Check an optional database driver without importing template UI helpers."""
+
+    import_name = import_name or package_name
+    if find_spec(import_name) is None:
+        raise ModuleNotFoundError(
+            f"Missing database driver dependency: {package_name}. "
+            f"Please install it with `pip install {package_name}`."
+        )
 
 
 def get_db():
     """根据配置参数，创建数据库连接对象"""
 
     if DatabaseConfig.database_type == "postgresql":
-        # 必要依赖检查
-        check_dependencies_version(
-            rules=[
-                {
-                    "name": "psycopg2-binary",
-                }
-            ]
-        )
+        check_database_driver_installed("psycopg2-binary", "psycopg2")
 
-        # 返回postgresql类型连接池对象
         return PooledPostgresqlDatabase(
             host=DatabaseConfig.postgresql_config["host"],
             port=DatabaseConfig.postgresql_config["port"],
@@ -30,16 +34,8 @@ def get_db():
         )
 
     elif DatabaseConfig.database_type == "mysql":
-        # 必要依赖检查
-        check_dependencies_version(
-            rules=[
-                {
-                    "name": "pymysql",
-                }
-            ]
-        )
+        check_database_driver_installed("pymysql")
 
-        # 返回mysql类型连接池对象
         return PooledMySQLDatabase(
             host=DatabaseConfig.mysql_config["host"],
             port=DatabaseConfig.mysql_config["port"],
@@ -50,11 +46,9 @@ def get_db():
             stale_timeout=300,
         )
 
-    # 默认返回sqlite类型连接对象
     return SqliteDatabase("magic_dash_pro.db")
 
 
-# 创建数据库连接对象
 db = get_db()
 
 
@@ -62,7 +56,6 @@ class BaseModel(Model):
     """数据库表模型基类"""
 
     class Meta:
-        # 关联数据库
         database = db
 
 
