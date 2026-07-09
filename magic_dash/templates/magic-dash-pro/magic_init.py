@@ -13,7 +13,7 @@ from werkzeug.security import generate_password_hash
 from configs import AuthConfig, BaseConfig
 from models import (
     create_tables,
-    db,
+    db,  # noqa: F401
     ensure_user_email_schema as ensure_model_user_email_schema,
     get_model_table_name,
     model_table_exists,
