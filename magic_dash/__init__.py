@@ -653,7 +653,7 @@ def _materialize_magic_dash_pro_orm_engine(project_path, orm_engine):
 
 
 @click.group(name="magic-dash")
-@click.version_option(version=__version__, message="%(version)s")
+@click.version_option(__version__, "-v", "--version", message="%(version)s")
 def magic_dash():
     """magic-dash命令行工具"""
     pass

@@ -240,6 +240,16 @@ def test_version():
     assert "." in version, f"版本号格式不正确: {version}"
 
 
+def test_short_version_matches_long_version():
+    """测试 -v 等价于 --version"""
+    long_returncode, long_stdout, long_stderr = run_command("magic-dash --version")
+    short_returncode, short_stdout, short_stderr = run_command("magic-dash -v")
+
+    assert long_returncode == 0, f"命令执行失败: {long_stderr}"
+    assert short_returncode == 0, f"命令执行失败: {short_stderr}"
+    assert short_stdout == long_stdout
+
+
 def test_help():
     """测试帮助信息查看"""
     returncode, stdout, stderr = run_command("magic-dash --help")
