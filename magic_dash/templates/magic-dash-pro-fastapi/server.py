@@ -9,6 +9,10 @@ from user_agents import parse
 from dash.backends._fastapi import get_current_request
 from models.users import Users
 from configs import BaseConfig
+from utils.fastapi_docs import (
+    configure_fastapi_documentation,
+    is_fastapi_documentation_pathname,
+)
 
 app = dash.Dash(
     __name__,
@@ -181,6 +185,7 @@ def _should_skip_auth(pathname: str):
     return any(
         [
             pathname in ["/_reload-hash", "/_dash-layout", "/_dash-dependencies"],
+            is_fastapi_documentation_pathname(server, pathname),
             pathname.startswith("/assets/"),
             pathname.startswith("/_dash-component-suites/"),
         ]
@@ -238,3 +243,7 @@ async def load_auth_and_check_browser(request: Request, call_next):
         request.state.current_user = await manager.optional(request) or AnonymousUser()
 
     return await call_next(request)
+
+
+# 放在server.py末尾执行，确保配置文档路由前可以完整检查Dash及业务路由
+configure_fastapi_documentation(server)

@@ -10,6 +10,18 @@ class BaseConfig:
     # 应用版本
     app_version: str = "dev"
 
+    # 是否启用FastAPI内置的Swagger UI接口文档，默认关闭
+    enable_fastapi_docs: bool = False
+
+    # 启用Swagger UI接口文档后的访问pathname
+    fastapi_docs_pathname: str = "/docs"
+
+    # 是否启用FastAPI内置的ReDoc接口文档，默认关闭
+    enable_fastapi_redoc: bool = False
+
+    # 启用ReDoc接口文档后的访问pathname
+    fastapi_redoc_pathname: str = "/redoc"
+
     # 是否启用版本更新日志通知功能，每次的新版本更新日志将在用户点击“已阅”按钮后不再重复展示
     enable_version_changelog_modal: bool = False
 

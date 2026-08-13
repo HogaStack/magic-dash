@@ -14,7 +14,7 @@ from models.users import Users
 from models.user_permission_groups import UserPermissionGroups
 from views import core_pages, login
 from views.status_pages import _403, _404, _500
-from configs import BaseConfig, RouterConfig, AuthConfig
+from configs import BaseConfig, RouterConfig
 
 # 检查Python版本
 check_python_version(min_version="3.9", max_version="3.14")

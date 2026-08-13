@@ -136,7 +136,7 @@ magic-dash create -n magic-dash-pro -b fastapi
 
 `simple-tool`和`magic-dash`选择`FastAPI`后端时，会在复制原始模板后轻量改写生成结果：`requirements.txt`会切换到`dash[fastapi]`并补充`fastapi`、`uvicorn`依赖，`dash.Dash()`实例会添加`backend="fastapi"`。`magic-dash`中的浏览器版本检查也会从`Flask before_request`改写为`FastAPI middleware`。
 
-`magic-dash-pro`选择`FastAPI`后端时，仍使用内部维护的`magic-dash-pro-fastapi`模板变体，以适配登录、鉴权和权限管理等复杂差异。
+`magic-dash-pro`选择`FastAPI`后端时，仍使用内部维护的`magic-dash-pro-fastapi`模板变体，以适配登录、鉴权、权限管理和可配置接口文档等复杂差异。该变体中的`Swagger UI`与`ReDoc`默认关闭，可分别启用并设置pathname别名。
 
 ## `magic-dash-pro` ORM引擎选择
 
