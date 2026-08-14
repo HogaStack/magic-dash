@@ -1,14 +1,14 @@
 from datetime import timedelta
 
 import dash
-from fastapi import Request
-from fastapi.responses import HTMLResponse
+from fastapi import Request, status
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi_login import LoginManager
 from user_agents import parse
 
 from dash.backends._fastapi import get_current_request
 from models.users import Users
-from configs import BaseConfig
+from configs import AuthConfig, BaseConfig
 from utils.fastapi_docs import (
     configure_fastapi_documentation,
     is_fastapi_documentation_pathname,
@@ -185,7 +185,8 @@ def _should_skip_auth(pathname: str):
     return any(
         [
             pathname in ["/_reload-hash", "/_dash-layout", "/_dash-dependencies"],
-            is_fastapi_documentation_pathname(server, pathname),
+            not BaseConfig.fastapi_docs_admin_only
+            and is_fastapi_documentation_pathname(server, pathname),
             pathname.startswith("/assets/"),
             pathname.startswith("/_dash-component-suites/"),
         ]
@@ -237,10 +238,26 @@ async def load_auth_and_check_browser(request: Request, call_next):
     if browser_block_message:
         return HTMLResponse(browser_block_message)
 
+    is_documentation_request = is_fastapi_documentation_pathname(
+        server,
+        request.url.path,
+    )
     if _should_skip_auth(request.url.path):
         request.state.current_user = AnonymousUser()
     else:
         request.state.current_user = await manager.optional(request) or AnonymousUser()
+
+    if BaseConfig.fastapi_docs_admin_only and is_documentation_request:
+        if not request.state.current_user.is_authenticated:
+            return JSONResponse(
+                {"detail": "登录后才能访问FastAPI接口文档"},
+                status_code=status.HTTP_401_UNAUTHORIZED,
+            )
+        if request.state.current_user.user_role != AuthConfig.admin_role:
+            return JSONResponse(
+                {"detail": "仅管理员可以访问FastAPI接口文档"},
+                status_code=status.HTTP_403_FORBIDDEN,
+            )
 
     return await call_next(request)
 

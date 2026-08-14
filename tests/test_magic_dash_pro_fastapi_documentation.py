@@ -1,6 +1,7 @@
 import importlib
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -41,20 +42,31 @@ def fastapi_docs_utils(monkeypatch):
 
 
 @pytest.fixture
-def template_server(tmp_path, monkeypatch):
+def template_server_factory(tmp_path, monkeypatch):
     pytest.importorskip("fastapi")
     pytest.importorskip("fastapi_login")
     pytest.importorskip("peewee")
     pytest.importorskip("user_agents")
 
-    clear_template_modules()
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.syspath_prepend(str(TEMPLATE_ROOT))
-    module = importlib.import_module("server")
+    def load_template_server(**config_values):
+        clear_template_modules()
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.syspath_prepend(str(TEMPLATE_ROOT))
 
-    yield module
+        configs = importlib.import_module("configs")
+        for config_name, config_value in config_values.items():
+            monkeypatch.setattr(configs.BaseConfig, config_name, config_value)
+
+        return importlib.import_module("server")
+
+    yield load_template_server
 
     clear_template_modules()
+
+
+@pytest.fixture
+def template_server(template_server_factory):
+    return template_server_factory()
 
 
 def configure_documentation(
@@ -102,6 +114,36 @@ def get_documentation_routes(server):
     ]
 
 
+def get_authenticated_client(template_server, monkeypatch, user_role):
+    """创建具有指定用户角色登录cookie的模板测试客户端。"""
+
+    from fastapi.testclient import TestClient
+
+    user_id = f"{user_role}-user"
+    user = SimpleNamespace(
+        user_id=user_id,
+        user_name=user_id,
+        user_role=user_role,
+        session_token="test-session-token",
+    )
+    monkeypatch.setattr(
+        template_server.Users,
+        "get_user",
+        staticmethod(lambda match_user_id: user if match_user_id == user_id else None),
+    )
+
+    access_token = template_server.manager.create_access_token(
+        data={"sub": user_id},
+    )
+    client = TestClient(template_server.server)
+    client.cookies.set(
+        template_server.BaseConfig.app_session_cookie_name,
+        access_token,
+    )
+
+    return client
+
+
 def test_template_disables_fastapi_documentation_by_default(template_server):
     from fastapi.testclient import TestClient
 
@@ -109,17 +151,157 @@ def test_template_disables_fastapi_documentation_by_default(template_server):
     assert template_server.BaseConfig.fastapi_docs_pathname == "/docs"
     assert not template_server.BaseConfig.enable_fastapi_redoc
     assert template_server.BaseConfig.fastapi_redoc_pathname == "/redoc"
+    assert template_server.BaseConfig.fastapi_docs_admin_only
     assert template_server.server.docs_url is None
     assert template_server.server.redoc_url is None
     assert get_documentation_routes(template_server.server) == []
 
     openapi_response = TestClient(template_server.server).get("/openapi.json")
 
-    assert openapi_response.status_code == 200
-    assert openapi_response.json()["info"] == {
+    assert openapi_response.status_code == 401
+    assert openapi_response.json() == {
+        "detail": "登录后才能访问FastAPI接口文档"
+    }
+
+
+def test_admin_only_documentation_rejects_anonymous_user(template_server_factory):
+    from fastapi.testclient import TestClient
+
+    template_server = template_server_factory(
+        enable_fastapi_docs=True,
+        fastapi_docs_pathname="/api-docs",
+        enable_fastapi_redoc=True,
+        fastapi_redoc_pathname="/api-redoc",
+    )
+    client = TestClient(template_server.server)
+
+    for pathname in [
+        "/api-docs",
+        "/api-docs/oauth2-redirect",
+        "/api-redoc",
+        "/openapi.json",
+    ]:
+        response = client.get(pathname)
+        assert response.status_code == 401
+        assert response.json() == {
+            "detail": "登录后才能访问FastAPI接口文档"
+        }
+
+
+def test_admin_only_documentation_rejects_non_admin_user(
+    template_server_factory,
+    monkeypatch,
+):
+    template_server = template_server_factory(
+        enable_fastapi_docs=True,
+        enable_fastapi_redoc=True,
+    )
+    client = get_authenticated_client(
+        template_server,
+        monkeypatch,
+        template_server.AuthConfig.normal_role,
+    )
+
+    for pathname in ["/docs", "/docs/oauth2-redirect", "/redoc", "/openapi.json"]:
+        response = client.get(pathname)
+        assert response.status_code == 403
+        assert response.json() == {
+            "detail": "仅管理员可以访问FastAPI接口文档"
+        }
+
+
+def test_admin_only_documentation_allows_admin_user(
+    template_server_factory,
+    monkeypatch,
+):
+    template_server = template_server_factory(
+        enable_fastapi_docs=True,
+        enable_fastapi_redoc=True,
+    )
+    client = get_authenticated_client(
+        template_server,
+        monkeypatch,
+        template_server.AuthConfig.admin_role,
+    )
+
+    for pathname in ["/docs", "/docs/oauth2-redirect", "/redoc", "/openapi.json"]:
+        assert client.get(pathname).status_code == 200
+
+    assert client.get("/openapi.json").json()["info"] == {
         "title": template_server.BaseConfig.app_title,
         "version": template_server.BaseConfig.app_version,
     }
+
+
+def test_admin_only_documentation_treats_invalid_cookie_as_anonymous(
+    template_server_factory,
+):
+    from fastapi.testclient import TestClient
+
+    template_server = template_server_factory(enable_fastapi_docs=True)
+    client = TestClient(template_server.server)
+    client.cookies.set(
+        template_server.BaseConfig.app_session_cookie_name,
+        "invalid-access-token",
+    )
+
+    response = client.get("/docs")
+
+    assert response.status_code == 401
+    assert response.json() == {"detail": "登录后才能访问FastAPI接口文档"}
+
+
+def test_admin_only_documentation_uses_current_database_role(
+    template_server_factory,
+    monkeypatch,
+):
+    from fastapi.testclient import TestClient
+
+    template_server = template_server_factory(enable_fastapi_docs=True)
+    user_id = "role-change-user"
+    current_role = {"value": template_server.AuthConfig.admin_role}
+
+    def get_user(match_user_id):
+        if match_user_id != user_id:
+            return None
+        return SimpleNamespace(
+            user_id=user_id,
+            user_name=user_id,
+            user_role=current_role["value"],
+            session_token="test-session-token",
+        )
+
+    monkeypatch.setattr(
+        template_server.Users,
+        "get_user",
+        staticmethod(get_user),
+    )
+    access_token = template_server.manager.create_access_token(data={"sub": user_id})
+    client = TestClient(template_server.server)
+    client.cookies.set(
+        template_server.BaseConfig.app_session_cookie_name,
+        access_token,
+    )
+
+    assert client.get("/docs").status_code == 200
+
+    current_role["value"] = template_server.AuthConfig.normal_role
+
+    assert client.get("/docs").status_code == 403
+
+
+def test_documentation_can_remain_public(template_server_factory):
+    from fastapi.testclient import TestClient
+
+    template_server = template_server_factory(
+        enable_fastapi_docs=True,
+        enable_fastapi_redoc=True,
+        fastapi_docs_admin_only=False,
+    )
+    client = TestClient(template_server.server)
+
+    for pathname in ["/docs", "/docs/oauth2-redirect", "/redoc", "/openapi.json"]:
+        assert client.get(pathname).status_code == 200
 
 
 @pytest.mark.parametrize(

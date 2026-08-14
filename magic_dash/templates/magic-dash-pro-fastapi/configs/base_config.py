@@ -22,6 +22,9 @@ class BaseConfig:
     # 启用ReDoc接口文档后的访问pathname
     fastapi_redoc_pathname: str = "/redoc"
 
+    # 是否仅允许管理员访问FastAPI接口文档及OpenAPI定义
+    fastapi_docs_admin_only: bool = True
+
     # 是否启用版本更新日志通知功能，每次的新版本更新日志将在用户点击“已阅”按钮后不再重复展示
     enable_version_changelog_modal: bool = False
 
