@@ -78,6 +78,8 @@ def configure_documentation(
     docs_pathname="/docs",
     enable_redoc=False,
     redoc_pathname="/redoc",
+    offline=False,
+    asset_url_builder=None,
 ):
     """使用测试配置调用接口文档注册函数。"""
 
@@ -86,6 +88,7 @@ def configure_documentation(
         "fastapi_docs_pathname": docs_pathname,
         "enable_fastapi_redoc": enable_redoc,
         "fastapi_redoc_pathname": redoc_pathname,
+        "fastapi_docs_offline": offline,
         "app_title": "测试应用",
         "app_version": "test",
     }
@@ -96,7 +99,10 @@ def configure_documentation(
             config_value,
         )
 
-    fastapi_docs_utils.configure_fastapi_documentation(server)
+    fastapi_docs_utils.configure_fastapi_documentation(
+        server,
+        asset_url_builder=asset_url_builder,
+    )
 
 
 def get_documentation_routes(server):
@@ -151,6 +157,7 @@ def test_template_disables_fastapi_documentation_by_default(template_server):
     assert template_server.BaseConfig.fastapi_docs_pathname == "/docs"
     assert not template_server.BaseConfig.enable_fastapi_redoc
     assert template_server.BaseConfig.fastapi_redoc_pathname == "/redoc"
+    assert not template_server.BaseConfig.fastapi_docs_offline
     assert template_server.BaseConfig.fastapi_docs_admin_only
     assert template_server.server.docs_url is None
     assert template_server.server.redoc_url is None
@@ -159,9 +166,7 @@ def test_template_disables_fastapi_documentation_by_default(template_server):
     openapi_response = TestClient(template_server.server).get("/openapi.json")
 
     assert openapi_response.status_code == 401
-    assert openapi_response.json() == {
-        "detail": "登录后才能访问FastAPI接口文档"
-    }
+    assert openapi_response.json() == {"detail": "登录后才能访问FastAPI接口文档"}
 
 
 def test_admin_only_documentation_rejects_anonymous_user(template_server_factory):
@@ -183,9 +188,7 @@ def test_admin_only_documentation_rejects_anonymous_user(template_server_factory
     ]:
         response = client.get(pathname)
         assert response.status_code == 401
-        assert response.json() == {
-            "detail": "登录后才能访问FastAPI接口文档"
-        }
+        assert response.json() == {"detail": "登录后才能访问FastAPI接口文档"}
 
 
 def test_admin_only_documentation_rejects_non_admin_user(
@@ -205,9 +208,7 @@ def test_admin_only_documentation_rejects_non_admin_user(
     for pathname in ["/docs", "/docs/oauth2-redirect", "/redoc", "/openapi.json"]:
         response = client.get(pathname)
         assert response.status_code == 403
-        assert response.json() == {
-            "detail": "仅管理员可以访问FastAPI接口文档"
-        }
+        assert response.json() == {"detail": "仅管理员可以访问FastAPI接口文档"}
 
 
 def test_admin_only_documentation_allows_admin_user(
@@ -302,6 +303,55 @@ def test_documentation_can_remain_public(template_server_factory):
 
     for pathname in ["/docs", "/docs/oauth2-redirect", "/redoc", "/openapi.json"]:
         assert client.get(pathname).status_code == 200
+
+
+def test_documentation_can_use_bundled_offline_assets(
+    template_server_factory,
+    monkeypatch,
+):
+    template_server = template_server_factory(
+        enable_fastapi_docs=True,
+        enable_fastapi_redoc=True,
+        fastapi_docs_offline=True,
+    )
+    client = get_authenticated_client(
+        template_server,
+        monkeypatch,
+        template_server.AuthConfig.admin_role,
+    )
+
+    docs_response = client.get("/docs")
+    redoc_response = client.get("/redoc")
+
+    assert docs_response.status_code == 200
+    assert "/assets/fastapi-docs/swagger-ui-bundle.js" in docs_response.text
+    assert "/assets/fastapi-docs/swagger-ui.css" in docs_response.text
+    assert "/assets/fastapi-docs/favicon.png" in docs_response.text
+    assert "cdn.jsdelivr.net" not in docs_response.text
+    assert "fastapi.tiangolo.com" not in docs_response.text
+
+    assert redoc_response.status_code == 200
+    assert "/assets/fastapi-docs/redoc.standalone.js" in redoc_response.text
+    assert "/assets/fastapi-docs/favicon.png" in redoc_response.text
+    assert "cdn.jsdelivr.net" not in redoc_response.text
+    assert "fonts.googleapis.com" not in redoc_response.text
+    assert "fastapi.tiangolo.com" not in redoc_response.text
+
+    for pathname in [
+        "/assets/fastapi-docs/swagger-ui-bundle.js",
+        "/assets/fastapi-docs/swagger-ui.css",
+        "/assets/fastapi-docs/redoc.standalone.js",
+        "/assets/fastapi-docs/favicon.png",
+    ]:
+        response = client.get(pathname)
+        assert response.status_code == 200
+        assert response.content
+
+    assert template_server.app.config.assets_path_ignore == [r"^fastapi-docs$"]
+    assert all(
+        "fastapi-docs" not in Path(asset_path).parts
+        for asset_path in template_server.app._assets_files
+    )
 
 
 @pytest.mark.parametrize(
@@ -499,4 +549,47 @@ def test_enabled_documentation_requires_openapi(fastapi_docs_utils, monkeypatch)
             server,
             monkeypatch,
             enable_docs=True,
+        )
+
+
+def test_offline_documentation_requires_asset_url_builder(
+    fastapi_docs_utils,
+    monkeypatch,
+):
+    from fastapi import FastAPI
+
+    server = FastAPI()
+
+    with pytest.raises(ValueError, match="静态资源URL生成函数"):
+        configure_documentation(
+            fastapi_docs_utils,
+            server,
+            monkeypatch,
+            enable_docs=True,
+            offline=True,
+        )
+
+
+def test_offline_documentation_fails_fast_when_assets_are_missing(
+    fastapi_docs_utils,
+    monkeypatch,
+    tmp_path,
+):
+    from fastapi import FastAPI
+
+    server = FastAPI()
+    monkeypatch.setattr(
+        fastapi_docs_utils,
+        "LOCAL_DOCS_ASSET_DIRECTORY",
+        tmp_path / "fastapi-docs",
+    )
+
+    with pytest.raises(FileNotFoundError, match="缺少静态资源"):
+        configure_documentation(
+            fastapi_docs_utils,
+            server,
+            monkeypatch,
+            enable_docs=True,
+            offline=True,
+            asset_url_builder=lambda pathname: f"/assets/{pathname}",
         )

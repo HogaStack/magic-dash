@@ -89,6 +89,7 @@ class BaseConfig:
     fastapi_docs_pathname = "/api-docs"
     enable_fastapi_redoc = True
     fastapi_redoc_pathname = "/api-redoc"
+    fastapi_docs_offline = True
     fastapi_docs_admin_only = True
 ```
 
@@ -96,7 +97,7 @@ class BaseConfig:
 
 `fastapi_docs_admin_only`默认为`True`。迁移时应将该参数与新版`server.py`一并加入项目配置；它会限制`Swagger UI`、OAuth2 redirect、`ReDoc`和`/openapi.json`仅供`AuthConfig.admin_role`管理员访问，匿名和非管理员请求分别返回`401`和`403`。确需保留旧项目的公开文档行为时，可将其设置为`False`。
 
-文档页面沿用`FastAPI`默认配置，通过外部`CDN`加载`Swagger UI`和`ReDoc`资源。自定义文档pathname不能与应用根路径、Dash内部接口、静态资源挂载或业务接口重复。
+`fastapi_docs_offline`默认为`False`，文档页面会沿用FastAPI默认外部`CDN`；设置为`True`后，已启用的`Swagger UI`和`ReDoc`会统一使用模板`assets/fastapi-docs/`中的离线资源。迁移旧项目时还需同步该资源目录，并在Dash构造参数中保留对它的`assets_path_ignore`配置，避免这些大体积JS/CSS被自动注入普通页面。自定义文档pathname不能与应用根路径、Dash内部接口、静态资源挂载或业务接口重复。
 
 ### `app.py`
 
@@ -481,7 +482,7 @@ uvicorn app:app.server --host 0.0.0.0 --port 8050 --workers 4
 - 已将`flask_login.logout_user`替换为`logout_current_user()`。
 - 已移除`flask_principal`相关身份切换逻辑。
 - 原`Flask`接口已改写为`FastAPI`路由。
-- 如需接口文档，已配置`enable_fastapi_docs`或`enable_fastapi_redoc`、对应pathname及`fastapi_docs_admin_only`，并确认管理员权限符合预期、部署环境可以访问`FastAPI`默认使用的外部`CDN`资源。
+- 如需接口文档，已配置`enable_fastapi_docs`或`enable_fastapi_redoc`、对应pathname、`fastapi_docs_offline`及`fastapi_docs_admin_only`；在线模式已确认部署环境能够访问FastAPI默认外部`CDN`，离线模式已同步`assets/fastapi-docs/`资源目录。
 - 原`before_request`逻辑已改写为`FastAPI`中间件。
 - 原`g`、`session`上下文依赖已迁移到`request.state`、数据库、缓存或前端状态。
 - 如启用邮件验证码登录，已迁移`EmailConfig`中的`SMTP`配置，并确认用户邮箱保持唯一。

@@ -20,6 +20,7 @@ app = dash.Dash(
     suppress_callback_exceptions=True,
     compress=True,
     update_title=None,
+    assets_path_ignore=[r"^fastapi-docs$"],
     backend="fastapi",
 )
 server = app.server
@@ -263,4 +264,7 @@ async def load_auth_and_check_browser(request: Request, call_next):
 
 
 # 放在server.py末尾执行，确保配置文档路由前可以完整检查Dash及业务路由
-configure_fastapi_documentation(server)
+configure_fastapi_documentation(
+    server,
+    asset_url_builder=app.get_asset_url,
+)

@@ -22,6 +22,9 @@ class BaseConfig:
     # 启用ReDoc接口文档后的访问pathname
     fastapi_redoc_pathname: str = "/redoc"
 
+    # FastAPI接口文档是否使用模板内置的离线静态资源
+    fastapi_docs_offline: bool = False
+
     # 是否仅允许管理员访问FastAPI接口文档及OpenAPI定义
     fastapi_docs_admin_only: bool = True
 

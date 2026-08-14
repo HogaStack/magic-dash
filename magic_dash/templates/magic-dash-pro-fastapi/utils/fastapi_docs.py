@@ -1,12 +1,16 @@
 """FastAPI接口文档路由配置工具模块
 
-复用Dash内置FastAPI实例已经创建的文档处理函数，根据模板配置重新注册
-Swagger UI和ReDoc，不额外创建FastAPI实例或重复实现文档页面。
+复用Dash内置FastAPI实例，根据模板配置重新注册Swagger UI和ReDoc。
+在线模式沿用FastAPI原生处理函数，离线模式复用FastAPI官方HTML生成函数，
+并通过Dash的assets机制加载模板内置静态资源。
 """
 
-from typing import Optional
+from pathlib import Path
+from typing import Callable, Dict, Optional
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
+from fastapi.responses import HTMLResponse
 from starlette.routing import Match
 
 from configs import BaseConfig
@@ -17,6 +21,17 @@ DOCUMENTATION_ROUTE_NAMES = {
     "swagger_ui_html",
     "swagger_ui_redirect",
     "redoc_html",
+}
+
+# 模板内置文档静态资源
+LOCAL_DOCS_ASSET_DIRECTORY = (
+    Path(__file__).resolve().parents[1] / "assets" / "fastapi-docs"
+)
+LOCAL_DOCS_ASSET_PATHS = {
+    "swagger_js": "fastapi-docs/swagger-ui-bundle.js",
+    "swagger_css": "fastapi-docs/swagger-ui.css",
+    "redoc_js": "fastapi-docs/redoc.standalone.js",
+    "favicon": "fastapi-docs/favicon.png",
 }
 
 
@@ -75,7 +90,92 @@ def _ensure_pathname_available(
         raise ValueError(f"BaseConfig.{config_name}配置的{pathname!r}已被现有路由占用")
 
 
-def configure_fastapi_documentation(server: FastAPI) -> None:
+def _get_local_documentation_endpoints(
+    server: FastAPI,
+    asset_url_builder: Optional[Callable[[str], str]],
+    docs_pathname: Optional[str],
+    redoc_pathname: Optional[str],
+) -> Dict[str, Callable]:
+    """创建使用模板内置静态资源的接口文档处理函数"""
+
+    if not BaseConfig.fastapi_docs_offline or not (docs_pathname or redoc_pathname):
+        return {}
+    if not callable(asset_url_builder):
+        raise ValueError("启用FastAPI离线接口文档时必须提供静态资源URL生成函数")
+
+    required_assets = [LOCAL_DOCS_ASSET_PATHS["favicon"]]
+    if docs_pathname:
+        required_assets.extend(
+            [
+                LOCAL_DOCS_ASSET_PATHS["swagger_js"],
+                LOCAL_DOCS_ASSET_PATHS["swagger_css"],
+            ]
+        )
+    if redoc_pathname:
+        required_assets.append(LOCAL_DOCS_ASSET_PATHS["redoc_js"])
+
+    missing_assets = []
+    for asset_path in required_assets:
+        relative_path = Path(asset_path)
+        if relative_path.parts[0] == "fastapi-docs":
+            file_path = LOCAL_DOCS_ASSET_DIRECTORY.joinpath(*relative_path.parts[1:])
+        else:
+            file_path = LOCAL_DOCS_ASSET_DIRECTORY.parent / relative_path
+        if not file_path.is_file():
+            missing_assets.append(str(file_path))
+    if missing_assets:
+        raise FileNotFoundError(
+            "FastAPI离线接口文档缺少静态资源：" + "、".join(missing_assets)
+        )
+
+    endpoints = {}
+
+    if docs_pathname:
+
+        async def swagger_ui_html(request: Request) -> HTMLResponse:
+            root_path = request.scope.get("root_path", "").rstrip("/")
+            oauth2_redirect_url = server.swagger_ui_oauth2_redirect_url
+            if oauth2_redirect_url:
+                oauth2_redirect_url = root_path + oauth2_redirect_url
+
+            return get_swagger_ui_html(
+                openapi_url=root_path + server.openapi_url,
+                title=f"{server.title} - Swagger UI",
+                swagger_js_url=asset_url_builder(LOCAL_DOCS_ASSET_PATHS["swagger_js"]),
+                swagger_css_url=asset_url_builder(
+                    LOCAL_DOCS_ASSET_PATHS["swagger_css"]
+                ),
+                swagger_favicon_url=asset_url_builder(
+                    LOCAL_DOCS_ASSET_PATHS["favicon"]
+                ),
+                oauth2_redirect_url=oauth2_redirect_url,
+                init_oauth=server.swagger_ui_init_oauth,
+                swagger_ui_parameters=server.swagger_ui_parameters,
+            )
+
+        endpoints["swagger_ui_html"] = swagger_ui_html
+
+    if redoc_pathname:
+
+        async def redoc_html(request: Request) -> HTMLResponse:
+            root_path = request.scope.get("root_path", "").rstrip("/")
+            return get_redoc_html(
+                openapi_url=root_path + server.openapi_url,
+                title=f"{server.title} - ReDoc",
+                redoc_js_url=asset_url_builder(LOCAL_DOCS_ASSET_PATHS["redoc_js"]),
+                redoc_favicon_url=asset_url_builder(LOCAL_DOCS_ASSET_PATHS["favicon"]),
+                with_google_fonts=False,
+            )
+
+        endpoints["redoc_html"] = redoc_html
+
+    return endpoints
+
+
+def configure_fastapi_documentation(
+    server: FastAPI,
+    asset_url_builder: Optional[Callable[[str], str]] = None,
+) -> None:
     """根据BaseConfig重新注册当前FastAPI实例的接口文档路由"""
 
     docs_pathname = _get_pathname(
@@ -108,6 +208,14 @@ def configure_fastapi_documentation(server: FastAPI) -> None:
         for route in server.routes
         if getattr(route, "name", None) in DOCUMENTATION_ROUTE_NAMES
     }
+    documentation_endpoints.update(
+        _get_local_documentation_endpoints(
+            server,
+            asset_url_builder,
+            docs_pathname,
+            redoc_pathname,
+        )
+    )
 
     # 所有检查完成后再修改路由，避免配置异常导致服务实例处于不完整状态
     for route_name, (pathname, config_name) in route_configs.items():
