@@ -1,13 +1,12 @@
 import importlib
 import sys
+from datetime import datetime
 from pathlib import Path
 
 import pytest
 
 
-TEMPLATE_ROOT = (
-    Path(__file__).resolve().parents[1] / "magic_dash" / "templates" / "magic-dash-pro"
-)
+TEMPLATES_ROOT = Path(__file__).resolve().parents[1] / "magic_dash" / "templates"
 
 
 def clear_template_modules():
@@ -18,15 +17,20 @@ def clear_template_modules():
             sys.modules.pop(module_name)
 
 
-@pytest.mark.parametrize("orm_engine", ["sqlalchemy", "sqlmodel"])
-def test_magic_dash_pro_alternative_engine_keeps_model_api_contract(
+@pytest.mark.parametrize(
+    "template_name",
+    ["magic-dash-pro", "magic-dash-pro-fastapi"],
+)
+@pytest.mark.parametrize("orm_engine", ["peewee", "sqlalchemy", "sqlmodel"])
+def test_magic_dash_pro_engine_keeps_model_api_contract(
     tmp_path,
     monkeypatch,
+    template_name,
     orm_engine,
 ):
     clear_template_modules()
     monkeypatch.chdir(tmp_path)
-    monkeypatch.syspath_prepend(str(TEMPLATE_ROOT))
+    monkeypatch.syspath_prepend(str(TEMPLATES_ROOT / template_name))
 
     engine_package = f"models._{orm_engine}"
     models = importlib.import_module(engine_package)
@@ -73,6 +77,7 @@ def test_magic_dash_pro_alternative_engine_keeps_model_api_contract(
         Users.get_all_users(with_department_name=True)[0]["department_name"] == "研发部"
     )
 
+    login_datetime = datetime(2026, 7, 6, 12, 0, 0)
     LoginLogs.add_log(
         "admin",
         "user-1",
@@ -80,11 +85,12 @@ def test_magic_dash_pro_alternative_engine_keeps_model_api_contract(
         "Chrome",
         "Windows",
         "登录成功",
-        "2026-07-06 12:00:00",
+        login_datetime,
     )
     assert LoginLogs.get_count() == 1
     assert LoginLogs.get_logs()[0]["user_name"] == "admin"
-    assert LoginLogs.get_logs()[0]["login_datetime"] == "2026-07-06 12:00:00"
+    assert isinstance(LoginLogs.get_logs()[0]["login_datetime"], datetime)
+    assert LoginLogs.get_logs()[0]["login_datetime"] == login_datetime
 
     verification, remaining_seconds, previous_verification = (
         EmailVerifications.issue_verification("admin@example.com", 60)
