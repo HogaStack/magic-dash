@@ -39,6 +39,7 @@ setup(
             "cryptography",
             "dash[fastapi]>=4.2.0,<5.0.0",
             "fastapi-login",
+            "httpx",
             "user_agents",
         ],
     },
