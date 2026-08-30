@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import List, Literal
 from peewee import AutoField, CharField, DateTimeField
 
@@ -82,7 +83,7 @@ class LoginLogs(BaseModel):
         browser: str,
         os: str,
         status: str,
-        login_datetime: str,
+        login_datetime: datetime,
     ):
         """添加日志记录"""
 

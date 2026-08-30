@@ -164,7 +164,7 @@ def handle_login(
             browser=browser_info,
             os=os_info,
             status="用户不存在",
-            login_datetime=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            login_datetime=datetime.now(),
         )
 
         return [
@@ -199,7 +199,7 @@ def handle_login(
                 browser=browser_info,
                 os=os_info,
                 status="密码错误",
-                login_datetime=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                login_datetime=datetime.now(),
             )
 
             return [
@@ -221,7 +221,7 @@ def handle_login(
             browser=browser_info,
             os=os_info,
             status="登录成功",
-            login_datetime=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            login_datetime=datetime.now(),
         )
 
     return [None] * 4
@@ -744,7 +744,7 @@ def handle_login_user_email_submit(nClicks, email, verification_code):
             ),
             os="{} {}".format(user_agent.os.family, user_agent.os.version_string),
             status=log_status,
-            login_datetime=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            login_datetime=datetime.now(),
         )
         # 提前终止当前无输出回调
         return
@@ -767,7 +767,7 @@ def handle_login_user_email_submit(nClicks, email, verification_code):
         ),
         os="{} {}".format(user_agent.os.family, user_agent.os.version_string),
         status="邮箱登录成功",
-        login_datetime=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        login_datetime=datetime.now(),
     )
 
 
@@ -841,7 +841,7 @@ def handle_login_user_otp_submit(nClicks, user_name, otp_code):
             browser=browser_info,
             os=os_info,
             status=log_status,
-            login_datetime=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            login_datetime=datetime.now(),
         )
 
     try:
@@ -927,5 +927,5 @@ def handle_login_user_otp_submit(nClicks, user_name, otp_code):
         browser=browser_info,
         os=os_info,
         status="OTP登录成功",
-        login_datetime=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        login_datetime=datetime.now(),
     )

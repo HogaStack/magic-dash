@@ -36,6 +36,11 @@ setup(
             "peewee>=4.0.0",
             "SQLAlchemy>=2.0.0",
             "sqlmodel>=0.0.27",
+            "cryptography",
+            "dash[fastapi]>=4.2.0,<5.0.0",
+            "fastapi-login",
+            "httpx",
+            "user_agents",
         ],
     },
     entry_points={

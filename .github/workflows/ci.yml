@@ -27,8 +27,8 @@ jobs:
         python -m pip install --upgrade pip
         pip install -e ".[test]"
     
-    - name: Run CLI tests with pytest
+    - name: Run test suite with pytest
       env:
         PYTHONIOENCODING: utf-8
       run: |
-        python -m pytest tests/test_cli.py -v
+        python -m pytest -v

@@ -73,16 +73,9 @@ class LoginLogs(BaseModel, table=True):
         browser: str,
         os: str,
         status: str,
-        login_datetime: str,
+        login_datetime: datetime,
     ):
         with session_scope() as session:
-            # 应用回调中传入的是格式化后的字符串，这里统一转换为datetime入库
-            if isinstance(login_datetime, str):
-                login_datetime = datetime.strptime(
-                    login_datetime,
-                    "%Y-%m-%d %H:%M:%S",
-                )
-
             session.add(
                 cls(
                     user_name=user_name,
@@ -120,12 +113,7 @@ class LoginLogs(BaseModel, table=True):
 
     @classmethod
     def to_dict(cls, record):
-        result = object_to_dict(record, cls.columns())
-        if isinstance(result["login_datetime"], datetime):
-            result["login_datetime"] = result["login_datetime"].strftime(
-                "%Y-%m-%d %H:%M:%S"
-            )
-        return result
+        return object_to_dict(record, cls.columns())
 
 
 # 保持Peewee旧实现的导入时建表行为，避免日志页首次访问时报表不存在
